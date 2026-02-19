@@ -1,6 +1,6 @@
 # Bundesliga Tracker
 
-Ein persoenlicher Tracker fuer die deutsche Fussball-Bundesliga, gebaut fuer meinen Sohn Phil.
+Ein persoenlicher Tracker fuer die deutsche Fussball-Bundesliga.
 
 ## Features
 
