@@ -24,7 +24,7 @@ function GoalSelect({ value, onChange, autoFocus }: { value: string; onChange: (
       value={value}
       onChange={(e) => onChange(e.target.value)}
       autoFocus={autoFocus}
-      className="h-10 w-14 rounded-md border border-border bg-background text-center text-lg font-bold text-foreground appearance-none cursor-pointer focus:ring-2 focus:ring-primary focus:outline-none"
+      className="h-9 w-12 sm:h-10 sm:w-14 rounded-md border border-border bg-background text-center text-lg font-bold text-foreground appearance-none cursor-pointer focus:ring-2 focus:ring-primary focus:outline-none"
     >
       <option value="" disabled>-</option>
       {GOAL_OPTIONS.map((n) => (
@@ -73,13 +73,16 @@ export function MatchCard({ match, homeClub, awayClub, onSaveScore, onClearScore
   if (!homeClub || !awayClub) return null;
 
   return (
-    <div className="match-card rounded-lg border border-border bg-secondary/30 px-4 py-3">
+    <div className="match-card rounded-lg border border-border bg-secondary/30 px-2 sm:px-4 py-3">
       <div className="flex items-center">
         {/* Home team - right aligned */}
-        <div className="flex flex-1 items-center justify-end gap-2 min-w-0">
-          <div className="text-right min-w-0">
+        <div className="flex flex-1 items-center justify-end gap-1.5 sm:gap-2 min-w-0">
+          <div className="text-right min-w-0 hidden sm:block">
             <p className="text-sm font-semibold truncate">{homeClub.name}</p>
             <p className="text-[10px] text-muted-foreground">{homeClub.shortName}</p>
+          </div>
+          <div className="text-right min-w-0 sm:hidden">
+            <p className="text-xs font-semibold truncate">{homeClub.shortName}</p>
           </div>
           <ClubLogo
             logoUrl={homeClub.logoUrl}
@@ -91,7 +94,7 @@ export function MatchCard({ match, homeClub, awayClub, onSaveScore, onClearScore
         </div>
 
         {/* Score center */}
-        <div className="flex flex-col items-center mx-4 min-w-[120px]">
+        <div className="flex flex-col items-center mx-2 sm:mx-4 shrink-0">
           {editing ? (
             <div className="flex items-center gap-2">
               <GoalSelect value={homeGoals} onChange={setHomeGoals} autoFocus />
@@ -105,7 +108,7 @@ export function MatchCard({ match, homeClub, awayClub, onSaveScore, onClearScore
                 setAwayGoals(match.awayGoals!.toString());
                 setEditing(true);
               }}
-              className="flex items-center gap-2 rounded-lg bg-background/60 px-5 py-2 transition-colors hover:bg-background"
+              className="flex items-center gap-1.5 sm:gap-2 rounded-lg bg-background/60 px-3 sm:px-5 py-2 transition-colors hover:bg-background"
             >
               <span className={`text-2xl font-bold ${match.homeGoals! > match.awayGoals! ? "text-green-400" : "text-foreground"}`}>
                 {match.homeGoals}
@@ -118,7 +121,7 @@ export function MatchCard({ match, homeClub, awayClub, onSaveScore, onClearScore
           ) : (
             <button
               onClick={() => setEditing(true)}
-              className="flex items-center gap-2 rounded-lg border border-dashed border-border px-5 py-2 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+              className="flex items-center gap-1.5 sm:gap-2 rounded-lg border border-dashed border-border px-3 sm:px-5 py-2 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
             >
               <Pencil className="h-3 w-3" />
               <span className="text-lg font-medium">- : -</span>
@@ -159,7 +162,7 @@ export function MatchCard({ match, homeClub, awayClub, onSaveScore, onClearScore
         </div>
 
         {/* Away team - left aligned */}
-        <div className="flex flex-1 items-center gap-2 min-w-0">
+        <div className="flex flex-1 items-center gap-1.5 sm:gap-2 min-w-0">
           <ClubLogo
             logoUrl={awayClub.logoUrl}
             name={awayClub.name}
@@ -167,9 +170,12 @@ export function MatchCard({ match, homeClub, awayClub, onSaveScore, onClearScore
             primaryColor={awayClub.primaryColor}
             size="lg"
           />
-          <div className="min-w-0">
+          <div className="min-w-0 hidden sm:block">
             <p className="text-sm font-semibold truncate">{awayClub.name}</p>
             <p className="text-[10px] text-muted-foreground">{awayClub.shortName}</p>
+          </div>
+          <div className="min-w-0 sm:hidden">
+            <p className="text-xs font-semibold truncate">{awayClub.shortName}</p>
           </div>
         </div>
       </div>
