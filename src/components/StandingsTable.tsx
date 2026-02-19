@@ -30,30 +30,16 @@ export function StandingsTable({ seasonCompetition, matches, clubs, competitionS
         <CardTitle className="text-lg">Tabelle</CardTitle>
       </CardHeader>
       <CardContent className="px-0">
-        {/* Legend */}
-        {zones.size > 0 && (
-          <div className="mb-4 flex flex-wrap gap-3 px-4">
-            {[...zones].map((z) => (
-              <div key={z} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <div className={`h-3 w-3 rounded-sm ${getZoneColor(z as never)}`} />
-                <span>{getZoneLabel(z as never)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="overflow-x-auto">
+        <div>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-xs text-muted-foreground">
                 <th className="w-8 py-2 pl-4 text-center">#</th>
                 <th className="py-2 pl-2 text-left">Verein</th>
                 <th className="w-8 py-2 text-center">Sp</th>
-                <th className="w-8 py-2 text-center">S</th>
-                <th className="w-8 py-2 text-center">U</th>
-                <th className="w-8 py-2 text-center">N</th>
-                <th className="w-12 py-2 text-center">Tore</th>
-                <th className="w-10 py-2 text-center">TD</th>
+                <th className="w-16 py-2 text-center">S-U-N</th>
+                <th className="w-12 py-2 text-center">T</th>
+                <th className="w-10 py-2 text-center">+/-</th>
                 <th className="w-10 py-2 pr-4 text-center font-bold">Pkt</th>
               </tr>
             </thead>
@@ -89,9 +75,7 @@ export function StandingsTable({ seasonCompetition, matches, clubs, competitionS
                       </div>
                     </td>
                     <td className="py-2.5 text-center text-muted-foreground">{row.played}</td>
-                    <td className="py-2.5 text-center">{row.wins}</td>
-                    <td className="py-2.5 text-center">{row.draws}</td>
-                    <td className="py-2.5 text-center">{row.losses}</td>
+                    <td className="py-2.5 text-center">{row.wins}-{row.draws}-{row.losses}</td>
                     <td className="py-2.5 text-center text-muted-foreground">
                       {row.goalsFor}:{row.goalsAgainst}
                     </td>
@@ -107,6 +91,27 @@ export function StandingsTable({ seasonCompetition, matches, clubs, competitionS
             </tbody>
           </table>
         </div>
+
+        {/* Legend */}
+        {zones.size > 0 && (
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-6 px-4 pt-4 border-t border-border/50">
+            <div className="space-y-2">
+              {[...zones].map((z) => (
+                <div key={z} className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                  <div className={`h-3.5 w-5 rounded-sm ${getZoneColor(z as never)}`} />
+                  <span>{getZoneLabel(z as never)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-2 text-xs text-muted-foreground">
+              <div className="flex gap-3"><span className="font-semibold text-foreground w-10 shrink-0">Sp</span><span>Spiele</span></div>
+              <div className="flex gap-3"><span className="font-semibold text-foreground w-10 shrink-0">S-U-N</span><span>Siege-Unentschieden-Niederlagen</span></div>
+              <div className="flex gap-3"><span className="font-semibold text-foreground w-10 shrink-0">T</span><span>Tore</span></div>
+              <div className="flex gap-3"><span className="font-semibold text-foreground w-10 shrink-0">+/-</span><span>Tor Differenz</span></div>
+              <div className="flex gap-3"><span className="font-semibold text-foreground w-10 shrink-0">Pkt</span><span>Punkte</span></div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

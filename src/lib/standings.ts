@@ -105,15 +105,15 @@ export function getZone(competitionSlug: string, position: number, totalTeams: n
 
 export function getZoneColor(zone: ZoneType): string {
   switch (zone) {
-    case "cl": return "bg-green-500";
-    case "cl-quali": return "bg-green-400";
-    case "el": return "bg-blue-500";
-    case "ecl": return "bg-sky-500";
-    case "aufstieg": return "bg-green-500";
-    case "aufstieg-relegation": return "bg-yellow-500";
-    case "relegation": return "bg-orange-500";
-    case "abstieg": return "bg-red-500";
-    case "abstieg-markiert": return "bg-red-400/50";
+    case "cl": return "bg-[#1a9fe0]";
+    case "cl-quali": return "bg-[#1a9fe0]";
+    case "el": return "bg-[#f7a600]";
+    case "ecl": return "bg-[#5dbe28]";
+    case "aufstieg": return "bg-[#5dbe28]";
+    case "aufstieg-relegation": return "bg-[#f7a600]";
+    case "relegation": return "bg-[#f7a600]";
+    case "abstieg": return "bg-[#e63e30]";
+    case "abstieg-markiert": return "bg-[#e63e30]/50";
     default: return "";
   }
 }
