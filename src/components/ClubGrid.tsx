@@ -7,7 +7,7 @@ import { ClubDetail } from "./ClubDetail";
 import { ClubEditor } from "./ClubEditor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, ArrowUpDown, Settings2 } from "lucide-react";
+import { ExternalLink, ArrowUp, ArrowDown, Settings2 } from "lucide-react";
 import { getBundesligaUrl } from "@/data/clubs";
 import type { Match } from "@/lib/db";
 
@@ -22,9 +22,29 @@ interface ClubGridProps {
   onRefresh: () => void;
 }
 
+const LEAGUE_NAMES: Record<string, string> = {
+  "1-bundesliga": "1. Bundesliga",
+  "2-bundesliga": "2. Bundesliga",
+  "3-liga": "3. Liga",
+};
+const LEAGUE_ORDER = ["1-bundesliga", "2-bundesliga", "3-liga"];
+
 export function ClubGrid({ clubs, competitionSlug, allMatches, allClubs, seasonCompetitionId, onMoveClub, leagueName, onRefresh }: ClubGridProps) {
   const [selectedClub, setSelectedClub] = useState<Club | null>(null);
   const [showEditor, setShowEditor] = useState(false);
+
+  const currentIdx = LEAGUE_ORDER.indexOf(competitionSlug ?? "");
+  const canMoveUp = currentIdx > 0;
+  const canMoveDown = currentIdx >= 0 && currentIdx < LEAGUE_ORDER.length - 1;
+  const targetUp = canMoveUp ? LEAGUE_NAMES[LEAGUE_ORDER[currentIdx - 1]] : "";
+  const targetDown = canMoveDown ? LEAGUE_NAMES[LEAGUE_ORDER[currentIdx + 1]] : "";
+
+  const handleMove = (club: Club, direction: "up" | "down") => {
+    const target = direction === "up" ? targetUp : targetDown;
+    const action = direction === "up" ? "aufsteigen" : "absteigen";
+    if (!confirm(`${club.name} in die ${target} ${action} lassen?`)) return;
+    onMoveClub?.(club.id, direction);
+  };
 
   if (selectedClub && allMatches && allClubs) {
     return (
@@ -45,10 +65,9 @@ export function ClubGrid({ clubs, competitionSlug, allMatches, allClubs, seasonC
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Clubs ({clubs.length})</CardTitle>
             <div className="flex items-center gap-2">
-              {onMoveClub && (
+              {onMoveClub && (canMoveUp || canMoveDown) && (
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <ArrowUpDown className="h-3 w-3" />
-                  <span className="hidden sm:inline">Auf-/Abstieg</span>
+                  <span className="hidden sm:inline">Auf-/Abstieg per Pfeil-Buttons</span>
                 </div>
               )}
               <Button
@@ -103,27 +122,27 @@ export function ClubGrid({ clubs, competitionSlug, allMatches, allClubs, seasonC
                       </a>
                     ) : null;
                   })()}
-                  {onMoveClub && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-green-400 opacity-60 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                        onClick={() => onMoveClub(club.id, "up")}
-                        title="Aufsteigen lassen (eine Liga hoeher)"
-                      >
-                        <span className="text-xs">&#9650;</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-red-400 opacity-60 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                        onClick={() => onMoveClub(club.id, "down")}
-                        title="Absteigen lassen (eine Liga tiefer)"
-                      >
-                        <span className="text-xs">&#9660;</span>
-                      </Button>
-                    </>
+                  {onMoveClub && canMoveUp && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7 border-green-500/40 text-green-400 hover:bg-green-500/20 hover:text-green-300"
+                      onClick={(e) => { e.stopPropagation(); handleMove(club, "up"); }}
+                      title={`Aufsteigen in ${targetUp}`}
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  {onMoveClub && canMoveDown && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7 border-red-500/40 text-red-400 hover:bg-red-500/20 hover:text-red-300"
+                      onClick={(e) => { e.stopPropagation(); handleMove(club, "down"); }}
+                      title={`Absteigen in ${targetDown}`}
+                    >
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    </Button>
                   )}
                 </div>
               </div>
