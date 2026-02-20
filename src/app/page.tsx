@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { db, type Season, type Competition, type SeasonCompetition, type Club, type Matchday, type Match, type CupRound, type Id } from "@/lib/db";
 import { seedQuickStart, hasData } from "@/lib/seed";
+import { migrateClubsIfNeeded } from "@/lib/migrate";
 import { Header } from "@/components/Header";
 import { CompetitionTabs } from "@/components/CompetitionTabs";
 import { StandingsTable } from "@/components/StandingsTable";
@@ -49,6 +50,7 @@ export default function Home() {
   // Load initial data
   useEffect(() => {
     (async () => {
+      await migrateClubsIfNeeded();
       const exists = await hasData();
       setDataExists(exists);
       if (exists) {

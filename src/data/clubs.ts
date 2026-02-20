@@ -1,5 +1,9 @@
 import type { Club } from "@/lib/db";
 
+// Increment this when club data changes (logos, names, new clubs, colors).
+// The app auto-migrates the son's IndexedDB on next startup.
+export const CLUBS_CONFIG_VERSION = 1;
+
 // 1. Bundesliga 2025/26
 export const CLUBS_1BL: Club[] = [
   { id: "club_fcb", name: "FC Bayern München", shortName: "FCB", slug: "fc-bayern-muenchen", primaryColor: "#DC052D", secondaryColor: "#0066B2", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/1/1b/FC_Bayern_M%C3%BCnchen_logo_%282017%29.svg" },
