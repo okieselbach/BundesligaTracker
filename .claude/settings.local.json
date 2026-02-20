@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app:*)",
+      "Bash(npx create-next-app@latest:*)",
+      "Bash(npx shadcn@latest init:*)",
+      "Bash(npx shadcn@latest add button card dialog dropdown-menu input label select separator sheet tabs badge table toast sonner --yes)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(for url in \"https://upload.wikimedia.org/wikipedia/de/4/43/FC_St._Pauli_logo.svg\" \"https://upload.wikimedia.org/wikipedia/commons/4/4d/FC_St_Pauli_Logo.svg\" \"https://upload.wikimedia.org/wikipedia/en/2/29/Eintracht_Frankfurt_logo.svg\" \"https://upload.wikimedia.org/wikipedia/de/9/95/Eintracht_Frankfurt.svg\")",
+      "Bash(do)",
+      "Bash(echo:*)",
+      "Bash(curl:*)",
+      "Bash(done)",
+      "WebFetch(domain:de.wikipedia.org)",
+      "Bash(for url in \"https://upload.wikimedia.org/wikipedia/commons/2/20/1._FC_Koeln_Logo_2014%E2%80%93.svg\" \"https://upload.wikimedia.org/wikipedia/commons/e/e5/Fc_st_pauli_logo.svg\" \"https://upload.wikimedia.org/wikipedia/commons/0/04/Eintracht_Frankfurt_Logo.svg\")",
+      "Bash(python3:*)",
+      "Bash(for url in \"https://upload.wikimedia.org/wikipedia/commons/0/01/1._FC_Koeln_Logo_2014%E2%80%93.svg\" \"https://upload.wikimedia.org/wikipedia/commons/b/b3/Fc_st_pauli_logo.svg\" \"https://upload.wikimedia.org/wikipedia/en/7/7e/Eintracht_Frankfurt_crest.svg\" \"https://upload.wikimedia.org/wikipedia/commons/3/30/Holstein_Kiel_Logo.svg\")",
+      "Bash(for:*)",
+      "WebFetch(domain:en.wikipedia.org)",
+      "WebFetch(domain:www.fussballdaten.de)",
+      "WebFetch(domain:www.diefalsche9.de)",
+      "WebFetch(domain:schalke04.de)",
+      "WebFetch(domain:www.fussball.de)",
+      "WebFetch(domain:www.liga3-online.de)",
+      "WebFetch(domain:www.dfb.de)",
+      "WebFetch(domain:www.bundesliga.com)",
+      "WebFetch(domain:www.kicker.de)",
+      "Bash(npx next build:*)",
+      "Bash(gh repo view:*)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(node -e:*)",
+      "WebFetch(domain:commons.wikimedia.org)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

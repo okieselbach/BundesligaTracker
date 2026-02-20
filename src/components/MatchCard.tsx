@@ -155,7 +155,7 @@ export function MatchCard({ match, homeClub, awayClub, onSaveScore, onClearScore
               </Button>
               {hasScore && (
                 <Button variant="ghost" size="sm" className="h-7 text-red-400 text-xs" onClick={handleClear}>
-                  Loeschen
+                  Löschen
                 </Button>
               )}
             </div>
