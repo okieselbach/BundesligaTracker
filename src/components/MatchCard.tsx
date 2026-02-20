@@ -25,6 +25,7 @@ function GoalSelect({ value, onChange, autoFocus }: { value: string; onChange: (
       onChange={(e) => onChange(e.target.value)}
       autoFocus={autoFocus}
       className="h-9 w-12 sm:h-10 sm:w-14 rounded-md border border-border bg-background text-center text-lg font-bold text-foreground appearance-none cursor-pointer focus:ring-2 focus:ring-primary focus:outline-none"
+      style={{ textAlignLast: "center", WebkitAppearance: "none" }}
     >
       <option value="" disabled>-</option>
       {GOAL_OPTIONS.map((n) => (
