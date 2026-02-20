@@ -8,14 +8,17 @@ import { CompetitionTabs } from "@/components/CompetitionTabs";
 import { StandingsTable } from "@/components/StandingsTable";
 import { MatchdayView } from "@/components/MatchdayView";
 import { ClubGrid } from "@/components/ClubGrid";
+import { AllClubsView } from "@/components/AllClubsView";
 import { CupView } from "@/components/CupView";
+import { AllTimeTable } from "@/components/AllTimeTable";
+import { HistoryView } from "@/components/HistoryView";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ExportImport } from "@/components/ExportImport";
 import { SeasonManager } from "@/components/SeasonManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 
-type SubTab = "spieltage" | "tabelle" | "clubs";
+type SubTab = "spieltage" | "tabelle" | "clubs" | "ewige-tabelle";
 
 // Competition slug order for "up"/"down" moves
 const LEAGUE_ORDER = ["1-bundesliga", "2-bundesliga", "3-liga"];
@@ -37,6 +40,8 @@ export default function Home() {
   const [cupRounds, setCupRounds] = useState<CupRound[]>([]);
   const [subTab, setSubTab] = useState<SubTab>("tabelle");
   const [showSettings, setShowSettings] = useState(false);
+  const [showHistorie, setShowHistorie] = useState(false);
+  const [showAllClubs, setShowAllClubs] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
@@ -187,6 +192,7 @@ export default function Home() {
         currentSeason={currentSeason}
         onSeasonChange={handleSeasonChange}
         onSettingsClick={() => setShowSettings(!showSettings)}
+        onHistorieClick={() => setShowHistorie(true)}
       />
 
       {showSettings && (
@@ -206,17 +212,33 @@ export default function Home() {
       <CompetitionTabs
         competitions={competitions}
         activeCompetition={activeCompetition}
-        onSelect={setActiveCompetition}
+        onSelect={(comp) => { setActiveCompetition(comp); setShowAllClubs(false); }}
+        allClubsActive={showAllClubs}
+        onAllClubsClick={() => setShowAllClubs(true)}
       />
 
       <main className="mx-auto w-full max-w-5xl px-4 py-6 flex-1">
-        {isCup ? (
+        {showAllClubs ? (
+          <AllClubsView
+            clubs={allDbClubs}
+            competitions={competitions}
+            seasonCompetitions={seasonCompetitions}
+          />
+        ) : isCup ? (
           <CupView
             seasonCompetition={seasonCompetition}
             cupRounds={cupRounds}
             matches={matches}
             clubs={clubs}
             onRefresh={refresh}
+            leagueClubIds={(() => {
+              const bl1 = competitions.find((c) => c.slug === "1-bundesliga");
+              const bl2 = competitions.find((c) => c.slug === "2-bundesliga");
+              const sc1 = bl1 ? seasonCompetitions.find((sc) => sc.competitionId === bl1.id) : undefined;
+              const sc2 = bl2 ? seasonCompetitions.find((sc) => sc.competitionId === bl2.id) : undefined;
+              if (sc1 && sc2) return { bundesliga1: sc1.clubIds, bundesliga2: sc2.clubIds };
+              return undefined;
+            })()}
           />
         ) : (
           <Tabs value={subTab} onValueChange={(v) => setSubTab(v as SubTab)} className="w-full">
@@ -230,6 +252,9 @@ export default function Home() {
               <TabsTrigger value="clubs" className="flex-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 Clubs
               </TabsTrigger>
+              <TabsTrigger value="ewige-tabelle" className="flex-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                Ewige Tabelle
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="tabelle">
@@ -237,6 +262,7 @@ export default function Home() {
                 <StandingsTable
                   seasonCompetition={seasonCompetition}
                   matches={matches}
+                  matchdays={matchdays}
                   clubs={clubs}
                   competitionSlug={activeCompetition?.slug ?? ""}
                 />
@@ -265,9 +291,23 @@ export default function Home() {
                 onRefresh={refresh}
               />
             </TabsContent>
+
+            <TabsContent value="ewige-tabelle">
+              {activeCompetition && (
+                <AllTimeTable
+                  competition={activeCompetition}
+                  clubs={allDbClubs}
+                />
+              )}
+            </TabsContent>
           </Tabs>
         )}
       </main>
+
+      <HistoryView
+        open={showHistorie}
+        onOpenChange={setShowHistorie}
+      />
 
       <footer className="border-t border-border bg-[#282d34] py-4 text-xs text-muted-foreground">
         <div className="mx-auto max-w-5xl px-4">

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Bundesliga Tracker",
-  description: "Dein persoenlicher Bundesliga, 2. Bundesliga, 3. Liga & DFB-Pokal Tracker",
+  description: "Dein persönlicher Bundesliga, 2. Bundesliga, 3. Liga & DFB-Pokal Tracker",
 };
 
 export default function RootLayout({

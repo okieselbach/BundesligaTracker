@@ -351,7 +351,7 @@ export function ClubEditor({ clubs, seasonCompetitionId, competitionSlug, onRefr
               Abbrechen
             </Button>
             <Button onClick={handleSave} disabled={!form.name.trim() || !form.shortName.trim()}>
-              {isNew ? "Hinzufuegen" : "Speichern"}
+              {isNew ? "Hinzufügen" : "Speichern"}
             </Button>
           </DialogFooter>
         </DialogContent>

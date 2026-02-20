@@ -1,21 +1,68 @@
 "use client";
 
-import type { Club, Match, SeasonCompetition } from "@/lib/db";
+import { useMemo } from "react";
+import type { Club, Match, Matchday, SeasonCompetition, Id } from "@/lib/db";
 import { computeStandings, getZone, getZoneColor, getZoneLabel } from "@/lib/standings";
 import { ClubLogo } from "./ClubLogo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChevronUp, ChevronDown } from "lucide-react";
 
 interface StandingsTableProps {
   seasonCompetition: SeasonCompetition;
   matches: Match[];
+  matchdays: Matchday[];
   clubs: Club[];
   competitionSlug: string;
 }
 
-export function StandingsTable({ seasonCompetition, matches, clubs, competitionSlug }: StandingsTableProps) {
+function computeTendency(
+  currentStandings: { clubId: Id }[],
+  matches: Match[],
+  matchdays: Matchday[],
+  seasonCompetition: SeasonCompetition,
+): Map<Id, number> {
+  const tendency = new Map<Id, number>();
+
+  // Find the latest matchday that has at least one played match
+  const playedMatchdays = matchdays
+    .filter((md) => matches.some((m) => m.matchdayId === md.id && typeof m.homeGoals === "number"))
+    .sort((a, b) => b.number - a.number);
+
+  if (playedMatchdays.length < 2) {
+    // Not enough matchdays to compare
+    return tendency;
+  }
+
+  const latestMd = playedMatchdays[0];
+
+  // Compute standings without the latest matchday's matches
+  const previousMatches = matches.filter((m) => m.matchdayId !== latestMd.id);
+  const previousStandings = computeStandings(seasonCompetition, previousMatches);
+
+  // Build position maps
+  const prevPosMap = new Map<Id, number>();
+  previousStandings.forEach((row, i) => prevPosMap.set(row.clubId, i + 1));
+
+  currentStandings.forEach((row, i) => {
+    const currentPos = i + 1;
+    const prevPos = prevPosMap.get(row.clubId);
+    if (prevPos !== undefined) {
+      tendency.set(row.clubId, prevPos - currentPos); // positive = moved up, negative = moved down
+    }
+  });
+
+  return tendency;
+}
+
+export function StandingsTable({ seasonCompetition, matches, matchdays, clubs, competitionSlug }: StandingsTableProps) {
   const standings = computeStandings(seasonCompetition, matches);
   const clubMap = new Map(clubs.map((c) => [c.id, c]));
   const totalTeams = standings.length;
+
+  const tendency = useMemo(
+    () => computeTendency(standings, matches, matchdays, seasonCompetition),
+    [standings, matches, matchdays, seasonCompetition],
+  );
 
   // Collect unique zones for legend
   const zones = new Set<string>();
@@ -50,17 +97,26 @@ export function StandingsTable({ seasonCompetition, matches, clubs, competitionS
                 const pos = index + 1;
                 const zone = getZone(competitionSlug, pos, totalTeams);
                 const zoneColor = zone ? getZoneColor(zone) : "";
+                const diff = tendency.get(row.clubId);
 
                 return (
                   <tr
                     key={row.clubId}
                     className="border-b border-border/50 transition-colors hover:bg-secondary/50"
                   >
-                    <td className="relative py-2.5 pl-4 text-center font-medium">
+                    <td className="relative py-0.5 pl-4 text-center font-medium">
                       {zoneColor && (
                         <div className={`zone-bar absolute left-0 top-1 bottom-1 ${zoneColor}`} />
                       )}
-                      {pos}
+                      <div className="flex flex-col items-center leading-none min-h-[2.25rem] justify-center">
+                        {diff !== undefined && diff > 0 && (
+                          <ChevronUp className="h-3 w-3 -mb-0.5 text-green-400" />
+                        )}
+                        <span>{pos}</span>
+                        {diff !== undefined && diff < 0 && (
+                          <ChevronDown className="h-3 w-3 -mt-0.5 text-red-400" />
+                        )}
+                      </div>
                     </td>
                     <td className="py-2.5 pl-2">
                       <div className="flex items-center gap-2.5">

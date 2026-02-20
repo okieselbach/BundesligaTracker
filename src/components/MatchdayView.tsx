@@ -157,7 +157,7 @@ export function MatchdayView({ matchdays, matches, clubs, seasonCompetitionId, o
         open={editingPairings}
         onOpenChange={setEditingPairings}
         title={`${currentMd.name} - Begegnungen bearbeiten`}
-        description="Paarungen fuer diesen Spieltag anpassen. Bestehende Ergebnisse werden zurueckgesetzt."
+        description="Paarungen für diesen Spieltag anpassen. Bestehende Ergebnisse werden zurückgesetzt."
         availableClubs={clubs}
         initialPairings={currentPairings}
         onSave={handleSavePairings}

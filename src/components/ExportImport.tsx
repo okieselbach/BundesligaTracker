@@ -32,13 +32,13 @@ export function ExportImport({ onImportDone, currentSeason }: ExportImportProps)
       await importAllData(data);
       onImportDone();
     } catch {
-      alert("Fehler beim Import. Bitte pruefe die Datei.");
+      alert("Fehler beim Import. Bitte prüfe die Datei.");
     }
   };
 
   const handleResetSeason = async () => {
     if (!currentSeason) return;
-    if (!confirm(`Saison "${currentSeason.name}" zuruecksetzen? Alle Ergebnisse dieser Saison werden geloescht (Spielplan bleibt erhalten).`)) return;
+    if (!confirm(`Saison "${currentSeason.name}" zurücksetzen? Alle Ergebnisse dieser Saison werden gelöscht (Spielplan bleibt erhalten).`)) return;
 
     // Get all season-competitions for this season
     const scs = await db.seasonCompetitions
@@ -93,7 +93,7 @@ export function ExportImport({ onImportDone, currentSeason }: ExportImportProps)
 
   const handleResetCup = async () => {
     if (!currentSeason) return;
-    if (!confirm(`DFB-Pokal der Saison "${currentSeason.name}" zuruecksetzen? Alle Runden und Ergebnisse werden geloescht (neu auslosen).`)) return;
+    if (!confirm(`DFB-Pokal der Saison "${currentSeason.name}" zurücksetzen? Alle Runden und Ergebnisse werden gelöscht (neu auslosen).`)) return;
 
     const scs = await db.seasonCompetitions
       .where("seasonId")
@@ -131,8 +131,8 @@ export function ExportImport({ onImportDone, currentSeason }: ExportImportProps)
   };
 
   const handleReset = async () => {
-    if (!confirm("ACHTUNG: Alle Daten werden unwiderruflich geloescht! Bist du sicher?")) return;
-    if (!confirm("Wirklich ALLE Daten loeschen? Das kann nicht rueckgaengig gemacht werden!")) return;
+    if (!confirm("ACHTUNG: Alle Daten werden unwiderruflich gelöscht! Bist du sicher?")) return;
+    if (!confirm("Wirklich ALLE Daten löschen? Das kann nicht rückgängig gemacht werden!")) return;
     await Promise.all([
       db.clubs.clear(),
       db.seasons.clear(),
@@ -175,24 +175,24 @@ export function ExportImport({ onImportDone, currentSeason }: ExportImportProps)
           {currentSeason && (
             <Button variant="outline" onClick={handleResetCup} className="gap-2 border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10">
               <Trophy className="h-4 w-4" />
-              DFB-Pokal zuruecksetzen
+              DFB-Pokal zurücksetzen
             </Button>
           )}
           {currentSeason && (
             <Button variant="outline" onClick={handleResetSeason} className="gap-2 border-orange-500/50 text-orange-400 hover:bg-orange-500/10">
               <RotateCcw className="h-4 w-4" />
-              Saison &quot;{currentSeason.name}&quot; zuruecksetzen
+              Saison &quot;{currentSeason.name}&quot; zurücksetzen
             </Button>
           )}
           <Button variant="destructive" onClick={handleReset} className="gap-2">
             <Trash2 className="h-4 w-4" />
-            Alle Daten loeschen
+            Alle Daten löschen
           </Button>
         </div>
 
         {currentSeason && (
           <p className="text-xs text-muted-foreground">
-            DFB-Pokal zuruecksetzen: Loescht alle Pokal-Runden und Ergebnisse (neu auslosen). Saison zuruecksetzen: Loescht alle Ergebnisse der Saison, Spielplaene bleiben erhalten.
+            DFB-Pokal zurücksetzen: Löscht alle Pokal-Runden und Ergebnisse (neu auslosen). Saison zurücksetzen: Löscht alle Ergebnisse der Saison, Spielpläne bleiben erhalten.
           </p>
         )}
       </CardContent>

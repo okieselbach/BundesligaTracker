@@ -3,16 +3,17 @@
 import type { Season } from "@/lib/db";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Settings, Trophy } from "lucide-react";
+import { History, Settings, Trophy } from "lucide-react";
 
 interface HeaderProps {
   seasons: Season[];
   currentSeason: Season | null;
   onSeasonChange: (seasonId: string) => void;
   onSettingsClick: () => void;
+  onHistorieClick: () => void;
 }
 
-export function Header({ seasons, currentSeason, onSeasonChange, onSettingsClick }: HeaderProps) {
+export function Header({ seasons, currentSeason, onSeasonChange, onSettingsClick, onHistorieClick }: HeaderProps) {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-[#282d34] backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
@@ -41,6 +42,10 @@ export function Header({ seasons, currentSeason, onSeasonChange, onSettingsClick
               </SelectContent>
             </Select>
           )}
+
+          <Button variant="ghost" size="icon" onClick={onHistorieClick} title="Historie">
+            <History className="h-5 w-5" />
+          </Button>
 
           <Button variant="ghost" size="icon" onClick={onSettingsClick}>
             <Settings className="h-5 w-5" />

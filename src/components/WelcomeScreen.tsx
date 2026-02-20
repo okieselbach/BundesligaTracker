@@ -23,7 +23,7 @@ export function WelcomeScreen({ onQuickStart, onImportDone }: WelcomeScreenProps
       await importAllData(data);
       onImportDone();
     } catch {
-      alert("Fehler beim Import. Bitte pruefe die Datei.");
+      alert("Fehler beim Import. Bitte prüfe die Datei.");
     }
   };
 
@@ -48,7 +48,7 @@ export function WelcomeScreen({ onQuickStart, onImportDone }: WelcomeScreenProps
               Zufalls-Spielplan
             </Button>
             <p className="text-xs text-muted-foreground">
-              64 Clubs mit automatisch generiertem Spielplan (Begegnungen zufaellig).
+              64 Clubs mit automatisch generiertem Spielplan (Begegnungen zufällig).
             </p>
 
             <Button onClick={() => onQuickStart(true)} variant="outline" className="w-full gap-2" size="lg">

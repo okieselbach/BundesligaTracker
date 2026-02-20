@@ -23,6 +23,7 @@ export function createCupRound(params: {
   number: number;
   name: string;
   clubIds: Id[];
+  pots?: { pot1: Id[]; pot2: Id[] };
 }): { round: CupRound; matches: Match[] } {
   const { seasonCompetitionId, number, name } = params;
   const roundId = newId("cr");
@@ -34,21 +35,54 @@ export function createCupRound(params: {
     name,
   };
 
-  const teams = shuffle(params.clubIds);
   const matches: Match[] = [];
 
-  for (let i = 0; i + 1 < teams.length; i += 2) {
-    const home = teams[i];
-    const away = teams[i + 1];
+  if (params.pots) {
+    // Two-pot draw: pot1 = home (3.Liga/Amateure), pot2 = away (1.BL/2.BL)
+    const pot1 = shuffle(params.pots.pot1);
+    const pot2 = shuffle(params.pots.pot2);
+    const pairCount = Math.min(pot1.length, pot2.length);
 
-    matches.push({
-      id: newId("m"),
-      seasonCompetitionId,
-      cupRoundId: roundId,
-      homeClubId: home,
-      awayClubId: away,
-      isKnockout: true,
-    });
+    for (let i = 0; i < pairCount; i++) {
+      matches.push({
+        id: newId("m"),
+        seasonCompetitionId,
+        cupRoundId: roundId,
+        homeClubId: pot1[i],
+        awayClubId: pot2[i],
+        isKnockout: true,
+      });
+    }
+
+    // Remaining teams from the larger pot play against each other
+    const remaining = [
+      ...pot1.slice(pairCount),
+      ...pot2.slice(pairCount),
+    ];
+    const shuffledRemaining = shuffle(remaining);
+    for (let i = 0; i + 1 < shuffledRemaining.length; i += 2) {
+      matches.push({
+        id: newId("m"),
+        seasonCompetitionId,
+        cupRoundId: roundId,
+        homeClubId: shuffledRemaining[i],
+        awayClubId: shuffledRemaining[i + 1],
+        isKnockout: true,
+      });
+    }
+  } else {
+    // Standard draw: shuffle all teams
+    const teams = shuffle(params.clubIds);
+    for (let i = 0; i + 1 < teams.length; i += 2) {
+      matches.push({
+        id: newId("m"),
+        seasonCompetitionId,
+        cupRoundId: roundId,
+        homeClubId: teams[i],
+        awayClubId: teams[i + 1],
+        isKnockout: true,
+      });
+    }
   }
 
   return { round, matches };

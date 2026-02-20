@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Club, CupRound, Match, SeasonCompetition } from "@/lib/db";
+import type { Club, CupRound, Id, Match, SeasonCompetition } from "@/lib/db";
 import { db, newId } from "@/lib/db";
 import { createCupRound, getCupWinner, allRoundMatchesDecided, CUP_ROUND_NAMES } from "@/lib/cup";
 import { MatchCard } from "./MatchCard";
@@ -17,9 +17,10 @@ interface CupViewProps {
   matches: Match[];
   clubs: Club[];
   onRefresh: () => void;
+  leagueClubIds?: { bundesliga1: Id[]; bundesliga2: Id[] };
 }
 
-export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefresh }: CupViewProps) {
+export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefresh, leagueClubIds }: CupViewProps) {
   const [activeRound, setActiveRound] = useState<number>(0);
   const [manualFirstRound, setManualFirstRound] = useState(false);
   const [manualNextRound, setManualNextRound] = useState(false);
@@ -36,14 +37,36 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefres
     );
   }
 
+  // Build two pots for Round 1: Pot 1 (3.Liga + rest = home), Pot 2 (1.BL + 2.BL = away)
+  const buildPots = (): { pot1: Id[]; pot2: Id[] } | undefined => {
+    if (!leagueClubIds) return undefined;
+    const topLeagueIds = new Set([
+      ...leagueClubIds.bundesliga1,
+      ...leagueClubIds.bundesliga2,
+    ]);
+    const pot1: Id[] = []; // 3.Liga + Amateure (Heimrecht)
+    const pot2: Id[] = []; // 1.BL + 2.BL (Auswaerts)
+    for (const clubId of seasonCompetition.clubIds) {
+      if (topLeagueIds.has(clubId)) {
+        pot2.push(clubId);
+      } else {
+        pot1.push(clubId);
+      }
+    }
+    if (pot1.length === 0 || pot2.length === 0) return undefined;
+    return { pot1, pot2 };
+  };
+
   const handleStartFirstRound = async () => {
     const roundNumber = 1;
     const roundName = CUP_ROUND_NAMES[roundNumber] || `Runde ${roundNumber}`;
+    const pots = buildPots();
     const { round, matches: newMatches } = createCupRound({
       seasonCompetitionId: seasonCompetition.id,
       number: roundNumber,
       name: roundName,
       clubIds: seasonCompetition.clubIds,
+      pots,
     });
 
     await db.cupRounds.add(round);
@@ -197,7 +220,7 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefres
             <div className="flex justify-center gap-3">
               <Button onClick={handleStartFirstRound} className="gap-2">
                 <Shuffle className="h-4 w-4" />
-                Auslosen
+                {buildPots() ? "Auslosen (2 Töpfe)" : "Auslosen"}
               </Button>
               <Button variant="outline" onClick={() => setManualFirstRound(true)} className="gap-2">
                 <Pencil className="h-4 w-4" />
@@ -211,7 +234,7 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefres
           open={manualFirstRound}
           onOpenChange={setManualFirstRound}
           title="1. Runde - Begegnungen manuell erstellen"
-          description="Erstelle die Paarungen fuer die 1. Runde des DFB-Pokals."
+          description="Erstelle die Paarungen für die 1. Runde des DFB-Pokals."
           availableClubs={allCupClubs}
           onSave={handleManualFirstRound}
         />
@@ -320,8 +343,8 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefres
       <MatchPairingEditor
         open={manualNextRound}
         onOpenChange={setManualNextRound}
-        title={`${CUP_ROUND_NAMES[(cupRounds[cupRounds.length - 1]?.number ?? 0) + 1] || "Naechste Runde"} - Begegnungen manuell`}
-        description="Erstelle die Paarungen fuer die naechste Runde."
+        title={`${CUP_ROUND_NAMES[(cupRounds[cupRounds.length - 1]?.number ?? 0) + 1] || "Nächste Runde"} - Begegnungen manuell`}
+        description="Erstelle die Paarungen für die nächste Runde."
         availableClubs={getWinnersForNextRound()}
         onSave={handleManualNextRound}
       />
@@ -331,7 +354,7 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefres
         open={editingCurrentRound}
         onOpenChange={setEditingCurrentRound}
         title={`${currentRound?.name ?? "Runde"} - Begegnungen bearbeiten`}
-        description="Paarungen fuer diese Runde anpassen. Bestehende Ergebnisse werden zurueckgesetzt."
+        description="Paarungen für diese Runde anpassen. Bestehende Ergebnisse werden zurückgesetzt."
         availableClubs={currentRoundClubs}
         initialPairings={currentRoundPairings}
         onSave={handleEditCurrentRound}
