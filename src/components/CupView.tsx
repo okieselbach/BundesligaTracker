@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Shuffle, Pencil } from "lucide-react";
+import { Confetti } from "./Confetti";
+import { ClubLogo } from "./ClubLogo";
 
 /** Number of top 2.BL teams that go into the Profitopf (real DFB-Pokal rule) */
 const ZWEITLIGA_PROFITOPF_COUNT = 14;
@@ -356,19 +358,28 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefres
           </div>
 
           {/* Winner display for Finale */}
-          {isFinal && allDecided && roundMatches.length === 1 && (
-            <div className="mt-6 text-center">
-              <div className="text-3xl mb-2">&#127942;</div>
-              <h3 className="text-lg font-bold">Pokalsieger!</h3>
-              {(() => {
-                const winner = getCupWinner(roundMatches[0]);
-                const winnerClub = winner ? clubMap.get(winner) : null;
-                return winnerClub ? (
-                  <p className="text-primary font-semibold text-xl">{winnerClub.name}</p>
-                ) : null;
-              })()}
-            </div>
-          )}
+          {isFinal && allDecided && roundMatches.length === 1 && (() => {
+            const winner = getCupWinner(roundMatches[0]);
+            const winnerClub = winner ? clubMap.get(winner) : null;
+            if (!winnerClub) return null;
+            return (
+              <>
+                <Confetti />
+                <div className="mt-8 flex flex-col items-center gap-3 text-center">
+                  <div className="text-5xl animate-bounce">&#127942;</div>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Pokalsieger</p>
+                  <ClubLogo
+                    logoUrl={winnerClub.logoUrl}
+                    name={winnerClub.name}
+                    shortName={winnerClub.shortName}
+                    primaryColor={winnerClub.primaryColor}
+                    size="xl"
+                  />
+                  <p className="text-2xl font-bold text-primary">{winnerClub.name}</p>
+                </div>
+              </>
+            );
+          })()}
         </CardContent>
       </Card>
 
