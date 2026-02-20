@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Club, Id } from "@/lib/db";
 import { ClubLogo } from "./ClubLogo";
 import { ClubDetail } from "./ClubDetail";
@@ -32,6 +32,13 @@ const LEAGUE_ORDER = ["1-bundesliga", "2-bundesliga", "3-liga"];
 export function ClubGrid({ clubs, competitionSlug, allMatches, allClubs, seasonCompetitionId, onMoveClub, leagueName, onRefresh }: ClubGridProps) {
   const [selectedClub, setSelectedClub] = useState<Club | null>(null);
   const [showEditor, setShowEditor] = useState(false);
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (showEditor && editorRef.current) {
+      editorRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [showEditor]);
 
   const currentIdx = LEAGUE_ORDER.indexOf(competitionSlug ?? "");
   const canMoveUp = currentIdx > 0;
@@ -152,12 +159,14 @@ export function ClubGrid({ clubs, competitionSlug, allMatches, allClubs, seasonC
       </Card>
 
       {showEditor && (
-        <ClubEditor
-          clubs={clubs}
-          seasonCompetitionId={seasonCompetitionId}
-          competitionSlug={competitionSlug}
-          onRefresh={onRefresh}
-        />
+        <div ref={editorRef}>
+          <ClubEditor
+            clubs={clubs}
+            seasonCompetitionId={seasonCompetitionId}
+            competitionSlug={competitionSlug}
+            onRefresh={onRefresh}
+          />
+        </div>
       )}
     </>
   );

@@ -225,6 +225,7 @@ export default function Home() {
             clubs={allDbClubs}
             competitions={competitions}
             seasonCompetitions={seasonCompetitions}
+            onRefresh={refresh}
           />
         ) : isCup ? (
           <CupView
