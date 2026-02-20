@@ -15,7 +15,7 @@ interface HeaderProps {
 
 export function Header({ seasons, currentSeason, onSeasonChange, onSettingsClick, onHistorieClick }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-[#282d34] backdrop-blur">
+    <header className="border-b border-border bg-[#282d34]">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">

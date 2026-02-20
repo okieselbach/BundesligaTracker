@@ -187,27 +187,29 @@ export default function Home() {
 
   return (
     <div className="fixed inset-0 flex flex-col overflow-y-auto overscroll-none">
-      <Header
-        seasons={seasons}
-        currentSeason={currentSeason}
-        onSeasonChange={handleSeasonChange}
-        onSettingsClick={() => setShowSettings(!showSettings)}
-        onHistorieClick={() => setShowHistorie(true)}
-      />
+      <div className="sticky top-0 z-50">
+        <Header
+          seasons={seasons}
+          currentSeason={currentSeason}
+          onSeasonChange={handleSeasonChange}
+          onSettingsClick={() => setShowSettings(!showSettings)}
+          onHistorieClick={() => setShowHistorie(true)}
+        />
 
-      {showSettings && (
-        <div className="border-b border-border bg-[#282d34]">
-          <div className="mx-auto max-w-5xl px-4 py-4 space-y-4">
-            <SeasonManager
-              seasons={seasons}
-              currentSeason={currentSeason}
-              onRefresh={refresh}
-            />
-            <Separator />
-            <ExportImport onImportDone={refresh} currentSeason={currentSeason} />
+        {showSettings && (
+          <div className="border-b border-border bg-[#282d34] max-h-[60vh] overflow-y-auto">
+            <div className="mx-auto max-w-5xl px-4 py-4 space-y-4">
+              <SeasonManager
+                seasons={seasons}
+                currentSeason={currentSeason}
+                onRefresh={refresh}
+              />
+              <Separator />
+              <ExportImport onImportDone={refresh} currentSeason={currentSeason} />
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <CompetitionTabs
         competitions={competitions}
