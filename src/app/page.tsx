@@ -166,7 +166,7 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="fixed inset-0 flex items-center justify-center">
         <div className="text-center">
           <div className="mb-4 text-4xl animate-pulse">&#9917;</div>
           <p className="text-muted-foreground">Laden...</p>
@@ -186,7 +186,7 @@ export default function Home() {
   const canMove = canMoveUp || canMoveDown;
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="fixed inset-0 flex flex-col overflow-y-auto overscroll-none">
       <Header
         seasons={seasons}
         currentSeason={currentSeason}

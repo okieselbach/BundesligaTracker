@@ -87,17 +87,13 @@
   * {
     @apply border-border outline-ring/50;
   }
-  html {
+  html, body {
+    height: 100%;
+    overflow: hidden;
     overscroll-behavior: none;
   }
   body {
     @apply bg-background text-foreground;
-    overscroll-behavior: none;
-    -webkit-overflow-scrolling: touch;
-    padding-top: env(safe-area-inset-top);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 

@@ -15,7 +15,6 @@ const geistMono = Geist_Mono({
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
@@ -23,7 +22,7 @@ export const metadata: Metadata = {
   description: "Dein persönlicher Bundesliga, 2. Bundesliga, 3. Liga & DFB-Pokal Tracker",
   other: {
     "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "apple-mobile-web-app-status-bar-style": "black",
     "mobile-web-app-capable": "yes",
   },
 };
