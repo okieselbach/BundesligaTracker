@@ -2,7 +2,7 @@ import type { Club } from "@/lib/db";
 
 // Increment this when club data changes (logos, names, new clubs, colors).
 // The app auto-migrates the son's IndexedDB on next startup.
-export const CLUBS_CONFIG_VERSION = 1;
+export const CLUBS_CONFIG_VERSION = 2;
 
 // 1. Bundesliga 2025/26
 export const CLUBS_1BL: Club[] = [
@@ -12,7 +12,7 @@ export const CLUBS_1BL: Club[] = [
   { id: "club_bvb", name: "Borussia Dortmund", shortName: "BVB", slug: "borussia-dortmund", primaryColor: "#FDE100", secondaryColor: "#000000", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/6/67/Borussia_Dortmund_logo.svg" },
   { id: "club_rbl", name: "RB Leipzig", shortName: "RBL", slug: "rb-leipzig", primaryColor: "#DD0741", secondaryColor: "#001F47", logoUrl: "https://upload.wikimedia.org/wikipedia/en/0/04/RB_Leipzig_2014_logo.svg" },
   { id: "club_sge", name: "Eintracht Frankfurt", shortName: "SGE", slug: "eintracht-frankfurt", primaryColor: "#E1000F", secondaryColor: "#000000", logoUrl: "https://upload.wikimedia.org/wikipedia/en/7/7e/Eintracht_Frankfurt_crest.svg" },
-  { id: "club_scf", name: "SC Freiburg", shortName: "SCF", slug: "sport-club-freiburg", primaryColor: "#E3000B", secondaryColor: "#000000", logoUrl: "https://upload.wikimedia.org/wikipedia/de/f/f1/SC-Freiburg_Logo-neu.svg" },
+  { id: "club_scf", name: "SC Freiburg", shortName: "SCF", slug: "sport-club-freiburg", primaryColor: "#E3000B", secondaryColor: "#000000", logoUrl: "https://upload.wikimedia.org/wikipedia/de/b/bf/SC_Freiburg_Logo.svg" },
   { id: "club_tsg", name: "TSG 1899 Hoffenheim", shortName: "TSG", slug: "tsg-hoffenheim", primaryColor: "#1961B5", secondaryColor: "#FFFFFF", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/e/e7/Logo_TSG_Hoffenheim.svg" },
   { id: "club_m05", name: "1. FSV Mainz 05", shortName: "M05", slug: "1-fsv-mainz-05", primaryColor: "#ED1C24", secondaryColor: "#FFFFFF", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/9/9e/Logo_Mainz_05.svg" },
   { id: "club_svw", name: "SV Werder Bremen", shortName: "SVW", slug: "sv-werder-bremen", primaryColor: "#1D9053", secondaryColor: "#FFFFFF", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/b/be/SV-Werder-Bremen-Logo.svg" },
@@ -22,7 +22,7 @@ export const CLUBS_1BL: Club[] = [
   { id: "club_fcu", name: "1. FC Union Berlin", shortName: "FCU", slug: "1-fc-union-berlin", primaryColor: "#EB1923", secondaryColor: "#FDE100", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/4/44/1._FC_Union_Berlin_Logo.svg" },
   { id: "club_stp", name: "FC St. Pauli", shortName: "STP", slug: "fc-st-pauli", primaryColor: "#6F4E37", secondaryColor: "#FFFFFF", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/b/b3/Fc_st_pauli_logo.svg" },
   { id: "club_hei", name: "1. FC Heidenheim", shortName: "FCH", slug: "1-fc-heidenheim-1846", primaryColor: "#E30613", secondaryColor: "#004B87", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/9/9d/1._FC_Heidenheim_1846.svg" },
-  { id: "club_hsv", name: "Hamburger SV", shortName: "HSV", slug: "hamburger-sv", primaryColor: "#005B9A", secondaryColor: "#FFFFFF", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/6/66/HSV-Logo.svg" },
+  { id: "club_hsv", name: "Hamburger SV", shortName: "HSV", slug: "hamburger-sv", primaryColor: "#005B9A", secondaryColor: "#FFFFFF", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/f/f7/Hamburger_SV_logo.svg" },
   { id: "club_koe", name: "1. FC Köln", shortName: "KOE", slug: "1-fc-koeln", primaryColor: "#ED1C24", secondaryColor: "#FFFFFF", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/0/01/1._FC_Koeln_Logo_2014%E2%80%93.svg" },
 ];
 
