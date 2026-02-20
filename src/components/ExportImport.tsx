@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { exportAllData, importAllData, downloadJson, type BackupData } from "@/lib/backup";
-import { Download, Upload, Trash2, RotateCcw, Trophy } from "lucide-react";
+import { exportAllData, importAllData, shareOrDownloadJson, type BackupData } from "@/lib/backup";
+import { Download, Upload, Trash2, RotateCcw, Trophy, Share2 } from "lucide-react";
 import { db, type Season } from "@/lib/db";
 
 interface ExportImportProps {
@@ -15,11 +15,20 @@ interface ExportImportProps {
 
 export function ExportImport({ onImportDone, currentSeason }: ExportImportProps) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [canShare, setCanShare] = useState(false);
+
+  useEffect(() => {
+    // Check if Web Share API with file support is available (iOS/iPadOS)
+    if (typeof navigator !== "undefined" && navigator.canShare) {
+      const testFile = new File(["test"], "test.json", { type: "application/json" });
+      setCanShare(navigator.canShare({ files: [testFile] }));
+    }
+  }, []);
 
   const handleExport = async () => {
     const data = await exportAllData();
     const date = new Date().toISOString().slice(0, 10);
-    downloadJson(data, `bundesliga-tracker-backup-${date}.json`);
+    await shareOrDownloadJson(data, `bundesliga-tracker-backup-${date}.json`);
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -153,8 +162,8 @@ export function ExportImport({ onImportDone, currentSeason }: ExportImportProps)
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={handleExport} className="gap-2">
-            <Download className="h-4 w-4" />
-            Daten exportieren
+            {canShare ? <Share2 className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+            {canShare ? "Backup teilen" : "Daten exportieren"}
           </Button>
           <Button variant="outline" onClick={() => fileRef.current?.click()} className="gap-2">
             <Upload className="h-4 w-4" />

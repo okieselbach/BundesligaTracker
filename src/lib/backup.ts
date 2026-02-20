@@ -65,8 +65,22 @@ export async function importAllData(data: BackupData): Promise<void> {
   );
 }
 
-export function downloadJson(data: unknown, filename: string) {
+export async function shareOrDownloadJson(data: unknown, filename: string) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const file = new File([blob], filename, { type: "application/json" });
+
+  // Use Web Share API with file support (iOS/iPadOS native share sheet)
+  if (typeof navigator !== "undefined" && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: "Bundesliga Tracker Backup" });
+      return;
+    } catch (err) {
+      // User cancelled or share failed — fall through to download
+      if ((err as Error).name === "AbortError") return;
+    }
+  }
+
+  // Fallback: normal file download
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
