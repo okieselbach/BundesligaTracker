@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { importAllData, type BackupData } from "@/lib/backup";
-import { Trophy, Upload, Shuffle, Pencil, Cloud, LogIn } from "lucide-react";
+import { Trophy, Upload, Shuffle, Pencil, Cloud, LogIn, UserPlus } from "lucide-react";
 import * as sync from "@/lib/sync";
 import { toast } from "sonner";
 
@@ -17,7 +17,7 @@ interface WelcomeScreenProps {
 
 export function WelcomeScreen({ onQuickStart, onImportDone }: WelcomeScreenProps) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [showCloudLogin, setShowCloudLogin] = useState(false);
+  const [cloudMode, setCloudMode] = useState<"hidden" | "login" | "register">("hidden");
   const [username, setUsername] = useState("");
   const [pin, setPin] = useState("");
   const [cloudLoading, setCloudLoading] = useState(false);
@@ -46,8 +46,21 @@ export function WelcomeScreen({ onQuickStart, onImportDone }: WelcomeScreenProps
         onImportDone();
       } else {
         toast.info("Angemeldet, aber kein Cloud-Backup vorhanden. Starte eine neue Saison!");
-        setShowCloudLogin(false);
+        setCloudMode("hidden");
       }
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setCloudLoading(false);
+    }
+  };
+
+  const handleCloudRegister = async () => {
+    setCloudLoading(true);
+    try {
+      await sync.register(username, pin);
+      toast.success("Account erstellt! Du bist jetzt angemeldet. Starte eine neue Saison!");
+      setCloudMode("hidden");
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -96,16 +109,20 @@ export function WelcomeScreen({ onQuickStart, onImportDone }: WelcomeScreenProps
               </div>
             </div>
 
-            {showCloudLogin ? (
+            {cloudMode !== "hidden" ? (
               <div className="space-y-3 text-left">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">
+                  {cloudMode === "login" ? "Anmelden" : "Neuen Account erstellen"}
+                </p>
                 <div className="space-y-2">
                   <Label htmlFor="welcome-username">Benutzername</Label>
                   <Input
                     id="welcome-username"
-                    placeholder="z.B. leon"
+                    placeholder="z.B. phil"
                     value={username}
                     onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))}
                     maxLength={20}
+                    autoComplete="username"
                   />
                 </div>
                 <div className="space-y-2">
@@ -119,17 +136,47 @@ export function WelcomeScreen({ onQuickStart, onImportDone }: WelcomeScreenProps
                     value={pin}
                     onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     maxLength={6}
+                    autoComplete={cloudMode === "register" ? "new-password" : "current-password"}
                   />
                 </div>
                 <Button
-                  onClick={handleCloudLogin}
+                  onClick={cloudMode === "login" ? handleCloudLogin : handleCloudRegister}
                   disabled={cloudLoading || username.length < 3 || pin.length !== 6}
                   className="w-full gap-2"
                 >
-                  <LogIn className="h-4 w-4" />
-                  {cloudLoading ? "Verbindung..." : "Cloud-Daten laden"}
+                  {cloudMode === "login" ? (
+                    <>
+                      <LogIn className="h-4 w-4" />
+                      {cloudLoading ? "Verbindung..." : "Anmelden & Daten laden"}
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="h-4 w-4" />
+                      {cloudLoading ? "Erstellt..." : "Account erstellen"}
+                    </>
+                  )}
                 </Button>
-                <Button variant="ghost" onClick={() => setShowCloudLogin(false)} className="w-full">
+                {cloudMode === "register" && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Merke dir deinen Benutzernamen und deine PIN!
+                  </p>
+                )}
+                {cloudMode === "login" ? (
+                  <p className="text-xs text-center">
+                    <span className="text-muted-foreground">Noch keinen Account? </span>
+                    <button className="text-primary underline" onClick={() => setCloudMode("register")}>
+                      Registrieren
+                    </button>
+                  </p>
+                ) : (
+                  <p className="text-xs text-center">
+                    <span className="text-muted-foreground">Schon registriert? </span>
+                    <button className="text-primary underline" onClick={() => setCloudMode("login")}>
+                      Anmelden
+                    </button>
+                  </p>
+                )}
+                <Button variant="ghost" onClick={() => { setCloudMode("hidden"); setUsername(""); setPin(""); }} className="w-full">
                   Abbrechen
                 </Button>
               </div>
@@ -138,7 +185,7 @@ export function WelcomeScreen({ onQuickStart, onImportDone }: WelcomeScreenProps
                 <Button
                   variant="outline"
                   className="w-full gap-2"
-                  onClick={() => setShowCloudLogin(true)}
+                  onClick={() => setCloudMode("login")}
                 >
                   <Cloud className="h-4 w-4" />
                   Cloud-Anmeldung
