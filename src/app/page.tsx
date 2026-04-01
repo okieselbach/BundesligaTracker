@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { db, type Season, type Competition, type SeasonCompetition, type Club, type Matchday, type Match, type CupRound, type Id } from "@/lib/db";
 import { seedQuickStart, hasData } from "@/lib/seed";
 import { migrateClubsIfNeeded } from "@/lib/migrate";
@@ -47,34 +47,21 @@ export default function Home() {
   const [showAllClubs, setShowAllClubs] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Cloud sync state
+  // Cloud sync state - reads from localStorage, refreshed via syncKey
   const [isSynced, setIsSynced] = useState(true);
-  const [syncLoggedIn, setSyncLoggedIn] = useState(false);
-  const [syncUsername, setSyncUsername] = useState<string | null>(null);
-  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [syncKey, setSyncKey] = useState(0);
 
-  // Initialize sync state client-side only (localStorage not available during SSR)
-  const syncInitialized = useRef(false);
-  if (!syncInitialized.current && typeof window !== "undefined") {
-    syncInitialized.current = true;
-    const loggedIn = sync.isLoggedIn();
-    if (loggedIn !== syncLoggedIn) setSyncLoggedIn(loggedIn);
-    const user = sync.getUsername();
-    if (user !== syncUsername) setSyncUsername(user);
-    const lastSync = sync.getLastSyncedAt();
-    if (lastSync !== lastSyncedAt) setLastSyncedAt(lastSync);
-  }
+  const syncLoggedIn = typeof window !== "undefined" && syncKey >= 0 ? sync.isLoggedIn() : false;
+  const syncUsername = typeof window !== "undefined" && syncKey >= 0 ? sync.getUsername() : null;
+  const lastSyncedAt = typeof window !== "undefined" && syncKey >= 0 ? sync.getLastSyncedAt() : null;
 
-  const refreshSyncState = useCallback(() => {
-    setSyncLoggedIn(sync.isLoggedIn());
-    setSyncUsername(sync.getUsername());
-    setLastSyncedAt(sync.getLastSyncedAt());
-  }, []);
+  const refreshSyncState = useCallback(() => setSyncKey((k) => k + 1), []);
 
   const refresh = useCallback(() => {
     setRefreshKey((k) => k + 1);
+    refreshSyncState();
     if (sync.isLoggedIn()) setIsSynced(false);
-  }, []);
+  }, [refreshSyncState]);
 
   // Load initial data
   useEffect(() => {
@@ -207,7 +194,7 @@ export default function Home() {
   }
 
   if (!dataExists) {
-    return <WelcomeScreen onQuickStart={handleQuickStart} onImportDone={refresh} />;
+    return <WelcomeScreen onQuickStart={handleQuickStart} onImportDone={refresh} onSyncStateChange={refreshSyncState} />;
   }
 
   const isCup = activeCompetition?.type === "cup";

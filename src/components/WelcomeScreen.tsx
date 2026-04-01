@@ -13,9 +13,10 @@ import { toast } from "sonner";
 interface WelcomeScreenProps {
   onQuickStart: (manual: boolean) => void;
   onImportDone: () => void;
+  onSyncStateChange?: () => void;
 }
 
-export function WelcomeScreen({ onQuickStart, onImportDone }: WelcomeScreenProps) {
+export function WelcomeScreen({ onQuickStart, onImportDone, onSyncStateChange }: WelcomeScreenProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [cloudMode, setCloudMode] = useState<"hidden" | "login" | "register">("hidden");
   const [username, setUsername] = useState("");
@@ -47,6 +48,7 @@ export function WelcomeScreen({ onQuickStart, onImportDone }: WelcomeScreenProps
       } else {
         toast.info("Angemeldet, aber kein Cloud-Backup vorhanden. Starte eine neue Saison!");
         setCloudMode("hidden");
+        onSyncStateChange?.();
       }
     } catch (err) {
       toast.error((err as Error).message);
@@ -61,6 +63,7 @@ export function WelcomeScreen({ onQuickStart, onImportDone }: WelcomeScreenProps
       await sync.register(username, pin);
       toast.success("Account erstellt! Du bist jetzt angemeldet. Starte eine neue Saison!");
       setCloudMode("hidden");
+      onSyncStateChange?.();
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
