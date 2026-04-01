@@ -69,7 +69,7 @@ export function WelcomeScreen({ onQuickStart, onImportDone }: WelcomeScreenProps
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
+    <div className="min-h-screen overflow-y-auto overscroll-none flex items-center justify-center p-4">
       <Card className="w-full max-w-md border-border bg-card">
         <CardContent className="pt-8 pb-8 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
