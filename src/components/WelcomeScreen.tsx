@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { importAllData, type BackupData } from "@/lib/backup";
-import { Trophy, Upload, Shuffle, Pencil, Cloud, LogIn, UserPlus } from "lucide-react";
+import { Trophy, Upload, Shuffle, Pencil, Cloud, LogIn, UserPlus, UserCircle } from "lucide-react";
 import * as sync from "@/lib/sync";
 import { toast } from "sonner";
 
@@ -22,6 +22,9 @@ export function WelcomeScreen({ onQuickStart, onImportDone, onSyncStateChange }:
   const [username, setUsername] = useState("");
   const [pin, setPin] = useState("");
   const [cloudLoading, setCloudLoading] = useState(false);
+  const [loggedInUser, setLoggedInUser] = useState<string | null>(() =>
+    typeof window !== "undefined" ? sync.getUsername() : null
+  );
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -47,6 +50,7 @@ export function WelcomeScreen({ onQuickStart, onImportDone, onSyncStateChange }:
         onImportDone();
       } else {
         toast.info("Angemeldet, aber kein Cloud-Backup vorhanden. Starte eine neue Saison!");
+        setLoggedInUser(username);
         setCloudMode("hidden");
         onSyncStateChange?.();
       }
@@ -62,6 +66,7 @@ export function WelcomeScreen({ onQuickStart, onImportDone, onSyncStateChange }:
     try {
       await sync.register(username, pin);
       toast.success("Account erstellt! Du bist jetzt angemeldet. Starte eine neue Saison!");
+      setLoggedInUser(username);
       setCloudMode("hidden");
       onSyncStateChange?.();
     } catch (err) {
@@ -113,7 +118,22 @@ export function WelcomeScreen({ onQuickStart, onImportDone, onSyncStateChange }:
               </div>
             </div>
 
-            {cloudMode !== "hidden" ? (
+            {loggedInUser ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <UserCircle className="h-4 w-4" />
+                  Angemeldet als <span className="font-medium text-foreground">{loggedInUser}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  <Upload className="h-4 w-4" />
+                  Backup importieren
+                </Button>
+              </div>
+            ) : cloudMode !== "hidden" ? (
               <div className="space-y-3 text-left">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">
                   {cloudMode === "login" ? "Anmelden" : "Neuen Account erstellen"}
