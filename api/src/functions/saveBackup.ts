@@ -31,6 +31,6 @@ async function saveBackup(request: HttpRequest, _context: InvocationContext): Pr
 app.http("saveBackup", {
   methods: ["POST"],
   authLevel: "anonymous",
-  route: "backup",
+  route: "backup/save",
   handler: saveBackup,
 });

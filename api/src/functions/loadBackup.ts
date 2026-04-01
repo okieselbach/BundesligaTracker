@@ -27,6 +27,6 @@ async function loadBackup(request: HttpRequest, _context: InvocationContext): Pr
 app.http("loadBackup", {
   methods: ["GET"],
   authLevel: "anonymous",
-  route: "backup",
+  route: "backup/load",
   handler: loadBackup,
 });

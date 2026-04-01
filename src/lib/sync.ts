@@ -51,11 +51,23 @@ async function apiCall<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  const data = await res.json();
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  } catch (err) {
+    throw new Error(`Netzwerkfehler: ${(err as Error).message}`);
+  }
+
+  let data: unknown;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`API Fehler (${res.status}): Ungültige Antwort`);
+  }
 
   if (!res.ok) {
-    throw new Error(data.error || `API Fehler (${res.status})`);
+    const errMsg = (data as { error?: string })?.error || `API Fehler (${res.status})`;
+    throw new Error(errMsg);
   }
   return data as T;
 }
@@ -78,7 +90,7 @@ export async function login(username: string, pin: string): Promise<{ lastBackup
 }
 
 export async function saveToCloud(data: BackupData): Promise<string> {
-  const { savedAt } = await apiCall<{ savedAt: string }>("/backup", {
+  const { savedAt } = await apiCall<{ savedAt: string }>("/backup/save", {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -87,6 +99,6 @@ export async function saveToCloud(data: BackupData): Promise<string> {
 }
 
 export async function loadFromCloud(): Promise<BackupData> {
-  const data = await apiCall<BackupData>("/backup");
+  const data = await apiCall<BackupData>("/backup/load");
   return data;
 }
