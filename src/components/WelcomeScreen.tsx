@@ -25,6 +25,7 @@ export function WelcomeScreen({ onQuickStart, onImportDone, onSyncStateChange }:
   const [loggedInUser, setLoggedInUser] = useState<string | null>(() =>
     typeof window !== "undefined" ? sync.getUsername() : null
   );
+  const [registrationLimitReached, setRegistrationLimitReached] = useState(false);
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -70,7 +71,12 @@ export function WelcomeScreen({ onQuickStart, onImportDone, onSyncStateChange }:
       setCloudMode("hidden");
       onSyncStateChange?.();
     } catch (err) {
-      toast.error((err as Error).message);
+      const msg = (err as Error).message;
+      if (msg === "Anmeldelimit erreicht") {
+        setRegistrationLimitReached(true);
+        setCloudMode("hidden");
+      }
+      toast.error(msg);
     } finally {
       setCloudLoading(false);
     }
@@ -204,6 +210,28 @@ export function WelcomeScreen({ onQuickStart, onImportDone, onSyncStateChange }:
                   Abbrechen
                 </Button>
               </div>
+            ) : registrationLimitReached ? (
+              <>
+                <p className="text-sm text-destructive font-medium">
+                  Anmeldelimit erreicht. Bitte melde dich bei Papa.
+                </p>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => setCloudMode("login")}
+                >
+                  <LogIn className="h-4 w-4" />
+                  Anmelden (bestehender Account)
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  <Upload className="h-4 w-4" />
+                  Backup importieren
+                </Button>
+              </>
             ) : (
               <>
                 <Button

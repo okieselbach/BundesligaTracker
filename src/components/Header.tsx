@@ -39,6 +39,14 @@ export function Header({ seasons, currentSeason, onSeasonChange, onSettingsClick
         </div>
 
         <div className="flex items-center gap-3">
+          <SyncStatus
+            isLoggedIn={syncLoggedIn}
+            isSynced={syncIsSynced}
+            lastSyncedAt={syncLastSyncedAt}
+            username={syncUsername}
+            onSyncDone={onSyncSave}
+          />
+
           {seasons.length > 0 && currentSeason && (
             <Select value={currentSeason.id} onValueChange={onSeasonChange}>
               <SelectTrigger className="w-[140px] bg-secondary">
@@ -54,13 +62,22 @@ export function Header({ seasons, currentSeason, onSeasonChange, onSettingsClick
             </Select>
           )}
 
-          <SyncStatus
-            isLoggedIn={syncLoggedIn}
-            isSynced={syncIsSynced}
-            lastSyncedAt={syncLastSyncedAt}
-            username={syncUsername}
-            onSyncDone={onSyncSave}
-          />
+          <Button variant="ghost" size="icon" onClick={onHistorieClick} title="Historie">
+            <History className="h-5 w-5" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            title={theme === "dark" ? "Light Mode" : "Dark Mode"}
+          >
+            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </Button>
+
+          <Button variant="ghost" size="icon" onClick={onSettingsClick}>
+            <Settings className="h-5 w-5" />
+          </Button>
 
           {syncLoggedIn && syncUsername && (
             <DropdownMenu>
@@ -81,23 +98,6 @@ export function Header({ seasons, currentSeason, onSeasonChange, onSettingsClick
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-
-          <Button variant="ghost" size="icon" onClick={onHistorieClick} title="Historie">
-            <History className="h-5 w-5" />
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            title={theme === "dark" ? "Light Mode" : "Dark Mode"}
-          >
-            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
-
-          <Button variant="ghost" size="icon" onClick={onSettingsClick}>
-            <Settings className="h-5 w-5" />
-          </Button>
         </div>
       </div>
     </header>

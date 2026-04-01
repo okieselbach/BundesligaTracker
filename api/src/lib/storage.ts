@@ -43,3 +43,12 @@ export async function blobExists(blobPath: string): Promise<boolean> {
   const blob = getContainer().getBlockBlobClient(blobPath);
   return blob.exists();
 }
+
+export async function countBlobsWithPrefix(prefix: string): Promise<number> {
+  const container = getContainer();
+  let count = 0;
+  for await (const _blob of container.listBlobsFlat({ prefix })) {
+    count++;
+  }
+  return count;
+}

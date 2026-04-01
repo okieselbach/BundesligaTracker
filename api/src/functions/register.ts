@@ -1,6 +1,8 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { hashPin, createToken } from "../lib/auth.js";
-import { uploadJson, blobExists } from "../lib/storage.js";
+import { uploadJson, blobExists, countBlobsWithPrefix } from "../lib/storage.js";
+
+const MAX_USERS = 50;
 
 interface RegisterBody {
   username: string;
@@ -28,6 +30,12 @@ async function register(request: HttpRequest, _context: InvocationContext): Prom
   // Validate PIN: exactly 6 digits
   if (!pin || !/^\d{6}$/.test(pin)) {
     return { status: 400, jsonBody: { error: "PIN muss genau 6 Ziffern haben" } };
+  }
+
+  // Check user limit
+  const userCount = await countBlobsWithPrefix("users/");
+  if (userCount >= MAX_USERS) {
+    return { status: 403, jsonBody: { error: "Anmeldelimit erreicht" } };
   }
 
   // Check if user already exists
