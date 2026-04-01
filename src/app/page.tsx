@@ -20,6 +20,8 @@ import { SeasonManager } from "@/components/SeasonManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import * as sync from "@/lib/sync";
+import { exportAllData } from "@/lib/backup";
+import { toast } from "sonner";
 
 type SubTab = "spieltage" | "tabelle" | "clubs" | "ewige-tabelle";
 
@@ -62,6 +64,44 @@ export default function Home() {
     refreshSyncState();
     if (sync.isLoggedIn()) setIsSynced(false);
   }, [refreshSyncState]);
+
+  const handleLogout = useCallback(async () => {
+    // Save to cloud first if not synced
+    if (sync.isLoggedIn() && !isSynced) {
+      try {
+        const data = await exportAllData();
+        await sync.saveToCloud(data);
+        toast.success("Daten in der Cloud gespeichert");
+      } catch (err) {
+        toast.error("Fehler beim Speichern: " + (err as Error).message);
+        return; // Don't logout if save failed
+      }
+    }
+    // Clear session and local database
+    sync.clearSession();
+    await db.clubs.clear();
+    await db.seasons.clear();
+    await db.competitions.clear();
+    await db.seasonCompetitions.clear();
+    await db.matchdays.clear();
+    await db.matches.clear();
+    await db.cupRounds.clear();
+    setDataExists(false);
+    setSeasons([]);
+    setCurrentSeason(null);
+    setCompetitions([]);
+    setActiveCompetition(null);
+    setSeasonCompetitions([]);
+    setSeasonCompetition(null);
+    setAllDbClubs([]);
+    setClubs([]);
+    setMatchdays([]);
+    setMatches([]);
+    setCupRounds([]);
+    setIsSynced(true);
+    refreshSyncState();
+    toast.success("Abgemeldet");
+  }, [isSynced, refreshSyncState]);
 
   // Load initial data
   useEffect(() => {
@@ -217,10 +257,11 @@ export default function Home() {
           syncLastSyncedAt={lastSyncedAt}
           syncUsername={syncUsername}
           onSyncSave={() => { refreshSyncState(); setIsSynced(true); }}
+          onLogout={handleLogout}
         />
 
         {showSettings && (
-          <div className="border-b border-border bg-[#282d34] max-h-[60vh] overflow-y-auto">
+          <div className="border-b border-border bg-header-bg max-h-[60vh] overflow-y-auto">
             <div className="mx-auto max-w-5xl px-4 py-4 space-y-4">
               <SeasonManager
                 seasons={seasons}
@@ -340,7 +381,7 @@ export default function Home() {
         onOpenChange={setShowHistorie}
       />
 
-      <footer className="border-t border-border bg-[#282d34] py-4 text-xs text-muted-foreground">
+      <footer className="border-t border-border bg-header-bg py-4 text-xs text-muted-foreground">
         <div className="mx-auto max-w-5xl px-4">
           Built with ❤️ by Oliver for Phil
         </div>

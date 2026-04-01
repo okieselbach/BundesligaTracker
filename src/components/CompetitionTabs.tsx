@@ -14,7 +14,7 @@ interface CompetitionTabsProps {
 
 export function CompetitionTabs({ competitions, activeCompetition, onSelect, allClubsActive, onAllClubsClick }: CompetitionTabsProps) {
   return (
-    <div className="border-b border-border bg-[#282d34]">
+    <div className="border-b border-border bg-header-bg">
       <div className="mx-auto max-w-5xl px-4">
         <nav className="flex gap-1 overflow-x-auto py-1">
           {competitions.map((comp) => {

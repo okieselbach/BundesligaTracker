@@ -192,7 +192,7 @@ export function WelcomeScreen({ onQuickStart, onImportDone, onSyncStateChange }:
                   onClick={() => setCloudMode("login")}
                 >
                   <Cloud className="h-4 w-4" />
-                  Cloud-Anmeldung
+                  Anmeldung
                 </Button>
                 <Button
                   variant="outline"
