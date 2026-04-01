@@ -1,10 +1,14 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { importAllData, type BackupData } from "@/lib/backup";
-import { Trophy, Upload, Shuffle, Pencil } from "lucide-react";
+import { Trophy, Upload, Shuffle, Pencil, Cloud, LogIn } from "lucide-react";
+import * as sync from "@/lib/sync";
+import { toast } from "sonner";
 
 interface WelcomeScreenProps {
   onQuickStart: (manual: boolean) => void;
@@ -13,6 +17,10 @@ interface WelcomeScreenProps {
 
 export function WelcomeScreen({ onQuickStart, onImportDone }: WelcomeScreenProps) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [showCloudLogin, setShowCloudLogin] = useState(false);
+  const [username, setUsername] = useState("");
+  const [pin, setPin] = useState("");
+  const [cloudLoading, setCloudLoading] = useState(false);
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -24,6 +32,26 @@ export function WelcomeScreen({ onQuickStart, onImportDone }: WelcomeScreenProps
       onImportDone();
     } catch {
       alert("Fehler beim Import. Bitte prüfe die Datei.");
+    }
+  };
+
+  const handleCloudLogin = async () => {
+    setCloudLoading(true);
+    try {
+      const { lastBackupAt } = await sync.login(username, pin);
+      if (lastBackupAt) {
+        const data = await sync.loadFromCloud();
+        await importAllData(data);
+        toast.success("Daten aus der Cloud geladen");
+        onImportDone();
+      } else {
+        toast.info("Angemeldet, aber kein Cloud-Backup vorhanden. Starte eine neue Saison!");
+        setShowCloudLogin(false);
+      }
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setCloudLoading(false);
     }
   };
 
@@ -68,14 +96,63 @@ export function WelcomeScreen({ onQuickStart, onImportDone }: WelcomeScreenProps
               </div>
             </div>
 
-            <Button
-              variant="outline"
-              className="w-full gap-2"
-              onClick={() => fileRef.current?.click()}
-            >
-              <Upload className="h-4 w-4" />
-              Backup importieren
-            </Button>
+            {showCloudLogin ? (
+              <div className="space-y-3 text-left">
+                <div className="space-y-2">
+                  <Label htmlFor="welcome-username">Benutzername</Label>
+                  <Input
+                    id="welcome-username"
+                    placeholder="z.B. leon"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))}
+                    maxLength={20}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="welcome-pin">PIN (6 Ziffern)</Label>
+                  <Input
+                    id="welcome-pin"
+                    type="password"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="123456"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    maxLength={6}
+                  />
+                </div>
+                <Button
+                  onClick={handleCloudLogin}
+                  disabled={cloudLoading || username.length < 3 || pin.length !== 6}
+                  className="w-full gap-2"
+                >
+                  <LogIn className="h-4 w-4" />
+                  {cloudLoading ? "Verbindung..." : "Cloud-Daten laden"}
+                </Button>
+                <Button variant="ghost" onClick={() => setShowCloudLogin(false)} className="w-full">
+                  Abbrechen
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => setShowCloudLogin(true)}
+                >
+                  <Cloud className="h-4 w-4" />
+                  Cloud-Anmeldung
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  <Upload className="h-4 w-4" />
+                  Backup importieren
+                </Button>
+              </>
+            )}
             <input
               ref={fileRef}
               type="file"

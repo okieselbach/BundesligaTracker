@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // API is a separate Azure Functions project with its own tsconfig
+    "api/**",
   ]),
 ]);
 

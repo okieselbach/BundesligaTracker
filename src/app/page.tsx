@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { db, type Season, type Competition, type SeasonCompetition, type Club, type Matchday, type Match, type CupRound, type Id } from "@/lib/db";
 import { seedQuickStart, hasData } from "@/lib/seed";
 import { migrateClubsIfNeeded } from "@/lib/migrate";
@@ -15,9 +15,11 @@ import { AllTimeTable } from "@/components/AllTimeTable";
 import { HistoryView } from "@/components/HistoryView";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ExportImport } from "@/components/ExportImport";
+import { CloudSync } from "@/components/CloudSync";
 import { SeasonManager } from "@/components/SeasonManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import * as sync from "@/lib/sync";
 
 type SubTab = "spieltage" | "tabelle" | "clubs" | "ewige-tabelle";
 
@@ -45,7 +47,34 @@ export default function Home() {
   const [showAllClubs, setShowAllClubs] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+  // Cloud sync state
+  const [isSynced, setIsSynced] = useState(true);
+  const [syncLoggedIn, setSyncLoggedIn] = useState(false);
+  const [syncUsername, setSyncUsername] = useState<string | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+
+  // Initialize sync state client-side only (localStorage not available during SSR)
+  const syncInitialized = useRef(false);
+  if (!syncInitialized.current && typeof window !== "undefined") {
+    syncInitialized.current = true;
+    const loggedIn = sync.isLoggedIn();
+    if (loggedIn !== syncLoggedIn) setSyncLoggedIn(loggedIn);
+    const user = sync.getUsername();
+    if (user !== syncUsername) setSyncUsername(user);
+    const lastSync = sync.getLastSyncedAt();
+    if (lastSync !== lastSyncedAt) setLastSyncedAt(lastSync);
+  }
+
+  const refreshSyncState = useCallback(() => {
+    setSyncLoggedIn(sync.isLoggedIn());
+    setSyncUsername(sync.getUsername());
+    setLastSyncedAt(sync.getLastSyncedAt());
+  }, []);
+
+  const refresh = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+    if (sync.isLoggedIn()) setIsSynced(false);
+  }, []);
 
   // Load initial data
   useEffect(() => {
@@ -196,6 +225,10 @@ export default function Home() {
           onSeasonChange={handleSeasonChange}
           onSettingsClick={() => setShowSettings(!showSettings)}
           onHistorieClick={() => setShowHistorie(true)}
+          syncLoggedIn={syncLoggedIn}
+          syncIsSynced={isSynced}
+          syncLastSyncedAt={lastSyncedAt}
+          syncUsername={syncUsername}
         />
 
         {showSettings && (
@@ -208,6 +241,11 @@ export default function Home() {
               />
               <Separator />
               <ExportImport onImportDone={refresh} currentSeason={currentSeason} />
+              <Separator />
+              <CloudSync
+                onSyncDone={refresh}
+                onSyncStateChange={() => { refreshSyncState(); setIsSynced(true); }}
+              />
             </div>
           </div>
         )}

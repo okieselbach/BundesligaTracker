@@ -4,6 +4,7 @@ import type { Season } from "@/lib/db";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { History, Settings, Trophy } from "lucide-react";
+import { SyncStatus } from "@/components/SyncStatus";
 
 interface HeaderProps {
   seasons: Season[];
@@ -11,9 +12,13 @@ interface HeaderProps {
   onSeasonChange: (seasonId: string) => void;
   onSettingsClick: () => void;
   onHistorieClick: () => void;
+  syncLoggedIn: boolean;
+  syncIsSynced: boolean;
+  syncLastSyncedAt: string | null;
+  syncUsername: string | null;
 }
 
-export function Header({ seasons, currentSeason, onSeasonChange, onSettingsClick, onHistorieClick }: HeaderProps) {
+export function Header({ seasons, currentSeason, onSeasonChange, onSettingsClick, onHistorieClick, syncLoggedIn, syncIsSynced, syncLastSyncedAt, syncUsername }: HeaderProps) {
   return (
     <header className="border-b border-border bg-[#282d34]">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
@@ -42,6 +47,13 @@ export function Header({ seasons, currentSeason, onSeasonChange, onSettingsClick
               </SelectContent>
             </Select>
           )}
+
+          <SyncStatus
+            isLoggedIn={syncLoggedIn}
+            isSynced={syncIsSynced}
+            lastSyncedAt={syncLastSyncedAt}
+            username={syncUsername}
+          />
 
           <Button variant="ghost" size="icon" onClick={onHistorieClick} title="Historie">
             <History className="h-5 w-5" />
