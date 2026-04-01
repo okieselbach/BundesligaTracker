@@ -93,15 +93,24 @@ export async function seedQuickStart(seasonName: string = "2025/26", manual: boo
   });
 }
 
+export interface FullRelegationChanges {
+  /** Clubs moving between leagues (direct promotions/relegations + resolved playoffs) */
+  movements: { clubId: string; from: string; to: string }[];
+  /** 3. Liga: clubs leaving (positions 17-20) */
+  thirdLeagueAbsteigerIds: string[];
+  /** Regionalliga clubs entering 3. Liga */
+  thirdLeagueAufsteigerIds: string[];
+}
+
 /** Create a new season. Copies club assignments from a source season, or uses seed defaults. */
 export async function createSeason(opts: {
   name: string;
   makeCurrent: boolean;
   copyFromSeasonId?: string;
   manual?: boolean;
-  thirdLeagueChanges?: { absteigerIds: string[]; aufsteigerIds: string[] };
+  relegationChanges?: FullRelegationChanges;
 }): Promise<string> {
-  const { name, makeCurrent, copyFromSeasonId, manual, thirdLeagueChanges } = opts;
+  const { name, makeCurrent, copyFromSeasonId, manual, relegationChanges } = opts;
 
   // Ensure competitions + clubs exist (including new Regionalliga clubs)
   await db.competitions.bulkPut(COMPETITIONS);
@@ -143,18 +152,36 @@ export async function createSeason(opts: {
       })
       .map((sc) => ({ compId: sc.competitionId, clubIds: [...sc.clubIds] }));
 
-    // Apply 3. Liga changes if provided
-    if (thirdLeagueChanges && thirdLeagueChanges.absteigerIds.length > 0) {
-      const thirdLigaComp = COMPETITIONS.find((c) => c.slug === "3-liga");
-      if (thirdLigaComp) {
-        const entry = leagueClubMap.find((e) => e.compId === thirdLigaComp.id);
-        if (entry) {
-          // Remove Absteiger
-          entry.clubIds = entry.clubIds.filter(
-            (id) => !thirdLeagueChanges.absteigerIds.includes(id),
-          );
-          // Add Aufsteiger
-          entry.clubIds.push(...thirdLeagueChanges.aufsteigerIds);
+    // Apply relegation changes if provided
+    if (relegationChanges) {
+      const slugToCompId = (slug: string) =>
+        COMPETITIONS.find((c) => c.slug === slug)?.id;
+
+      // Apply inter-league movements (promotions, relegations, resolved playoffs)
+      for (const mv of relegationChanges.movements) {
+        const fromCompId = slugToCompId(mv.from);
+        const toCompId = slugToCompId(mv.to);
+        if (!fromCompId || !toCompId) continue;
+
+        const fromEntry = leagueClubMap.find((e) => e.compId === fromCompId);
+        const toEntry = leagueClubMap.find((e) => e.compId === toCompId);
+        if (fromEntry && toEntry) {
+          fromEntry.clubIds = fromEntry.clubIds.filter((id) => id !== mv.clubId);
+          toEntry.clubIds.push(mv.clubId);
+        }
+      }
+
+      // Apply 3. Liga Absteiger/Aufsteiger (Regionalliga exchange)
+      if (relegationChanges.thirdLeagueAbsteigerIds.length > 0) {
+        const thirdLigaCompId = slugToCompId("3-liga");
+        if (thirdLigaCompId) {
+          const entry = leagueClubMap.find((e) => e.compId === thirdLigaCompId);
+          if (entry) {
+            entry.clubIds = entry.clubIds.filter(
+              (id) => !relegationChanges.thirdLeagueAbsteigerIds.includes(id),
+            );
+            entry.clubIds.push(...relegationChanges.thirdLeagueAufsteigerIds);
+          }
         }
       }
     }
@@ -162,12 +189,12 @@ export async function createSeason(opts: {
     const dfbSC = sourceSCs.find((sc) => sc.competitionId === "comp_dfb");
     dfbClubIds = dfbSC ? [...dfbSC.clubIds] : [];
 
-    // Apply 3. Liga changes to DFB-Pokal too
-    if (thirdLeagueChanges && thirdLeagueChanges.absteigerIds.length > 0) {
+    // Apply 3. Liga Regionalliga changes to DFB-Pokal
+    if (relegationChanges && relegationChanges.thirdLeagueAbsteigerIds.length > 0) {
       dfbClubIds = dfbClubIds.filter(
-        (id) => !thirdLeagueChanges.absteigerIds.includes(id),
+        (id) => !relegationChanges.thirdLeagueAbsteigerIds.includes(id),
       );
-      for (const aufId of thirdLeagueChanges.aufsteigerIds) {
+      for (const aufId of relegationChanges.thirdLeagueAufsteigerIds) {
         if (!dfbClubIds.includes(aufId)) {
           dfbClubIds.push(aufId);
         }
