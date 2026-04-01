@@ -186,20 +186,15 @@ export async function createSeason(opts: {
       }
     }
 
-    const dfbSC = sourceSCs.find((sc) => sc.competitionId === "comp_dfb");
-    dfbClubIds = dfbSC ? [...dfbSC.clubIds] : [];
-
-    // Apply 3. Liga Regionalliga changes to DFB-Pokal
-    if (relegationChanges && relegationChanges.thirdLeagueAbsteigerIds.length > 0) {
-      dfbClubIds = dfbClubIds.filter(
-        (id) => !relegationChanges.thirdLeagueAbsteigerIds.includes(id),
-      );
-      for (const aufId of relegationChanges.thirdLeagueAufsteigerIds) {
-        if (!dfbClubIds.includes(aufId)) {
-          dfbClubIds.push(aufId);
-        }
-      }
-    }
+    // DFB-Pokal: rebuild from final league compositions (all 56 league clubs + 8 Regionalliga)
+    // This avoids the bug where Regionalliga teams promoted to 3. Liga were already in the
+    // Pokal, causing the incremental patch to lose teams.
+    const allLeagueClubIds = leagueClubMap.flatMap((e) => e.clubIds);
+    const leagueSet = new Set(allLeagueClubIds);
+    const regionalligaPool = CLUBS_REGIONALLIGA
+      .map((c) => c.id)
+      .filter((id) => !leagueSet.has(id));
+    dfbClubIds = [...allLeagueClubIds, ...regionalligaPool.slice(0, POKAL_REGIONALLIGA_COUNT)];
   } else {
     // Use seed defaults
     leagueClubMap = [

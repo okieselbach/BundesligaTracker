@@ -37,6 +37,13 @@ export function createCupRound(params: {
 
   const matches: Match[] = [];
 
+  const totalTeams = params.pots
+    ? params.pots.pot1.length + params.pots.pot2.length
+    : params.clubIds.length;
+  if (totalTeams % 2 !== 0) {
+    console.warn(`Cup draw: odd number of teams (${totalTeams}), one team will be left out`);
+  }
+
   if (params.pots) {
     // Two-pot draw: pot1 = home (3.Liga/Amateure), pot2 = away (1.BL/2.BL)
     const pot1 = shuffle(params.pots.pot1);
