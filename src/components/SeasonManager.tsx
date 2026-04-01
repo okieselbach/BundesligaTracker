@@ -178,11 +178,19 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
   };
 
   const handleDelete = async (season: Season) => {
-    if (season.isCurrent) {
-      alert("Die aktuelle Saison kann nicht gelöscht werden. Wechsle zuerst zu einer anderen Saison.");
+    if (seasons.length <= 1) {
+      alert("Die letzte Saison kann nicht gelöscht werden.");
       return;
     }
     if (!confirm(`Saison "${season.name}" und alle zugehörigen Daten (Spielpläne, Ergebnisse) unwiderruflich löschen?`)) return;
+
+    // If deleting the current season, make another one current first
+    if (season.isCurrent) {
+      const other = seasons.find((s) => s.id !== season.id);
+      if (other) {
+        await db.seasons.update(other.id, { isCurrent: true });
+      }
+    }
     await deleteSeason(season.id);
     onRefresh();
   };
@@ -387,7 +395,7 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
                 <span className="ml-2 text-xs text-primary">(aktuell)</span>
               )}
             </span>
-            {!s.isCurrent && (
+            {seasons.length > 1 && (
               <Button
                 variant="ghost"
                 size="icon"

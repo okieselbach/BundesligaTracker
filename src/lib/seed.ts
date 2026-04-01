@@ -112,7 +112,7 @@ export async function createSeason(opts: {
 
   if (makeCurrent) {
     // Un-mark any existing current season
-    const currentSeasons = await db.seasons.where("isCurrent").equals(1).toArray();
+    const currentSeasons = await db.seasons.filter((s) => s.isCurrent).toArray();
     for (const s of currentSeasons) {
       await db.seasons.update(s.id, { isCurrent: false });
     }
