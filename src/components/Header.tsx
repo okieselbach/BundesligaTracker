@@ -16,9 +16,10 @@ interface HeaderProps {
   syncIsSynced: boolean;
   syncLastSyncedAt: string | null;
   syncUsername: string | null;
+  onSyncSave: () => void;
 }
 
-export function Header({ seasons, currentSeason, onSeasonChange, onSettingsClick, onHistorieClick, syncLoggedIn, syncIsSynced, syncLastSyncedAt, syncUsername }: HeaderProps) {
+export function Header({ seasons, currentSeason, onSeasonChange, onSettingsClick, onHistorieClick, syncLoggedIn, syncIsSynced, syncLastSyncedAt, syncUsername, onSyncSave }: HeaderProps) {
   return (
     <header className="border-b border-border bg-[#282d34]">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
@@ -53,6 +54,7 @@ export function Header({ seasons, currentSeason, onSeasonChange, onSettingsClick
             isSynced={syncIsSynced}
             lastSyncedAt={syncLastSyncedAt}
             username={syncUsername}
+            onSyncDone={onSyncSave}
           />
 
           <Button variant="ghost" size="icon" onClick={onHistorieClick} title="Historie">

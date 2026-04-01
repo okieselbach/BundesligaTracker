@@ -216,6 +216,7 @@ export default function Home() {
           syncIsSynced={isSynced}
           syncLastSyncedAt={lastSyncedAt}
           syncUsername={syncUsername}
+          onSyncSave={() => { refreshSyncState(); setIsSynced(true); }}
         />
 
         {showSettings && (
