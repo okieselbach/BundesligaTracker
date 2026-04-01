@@ -124,7 +124,7 @@ export function WelcomeScreen({ onQuickStart, onImportDone, onSyncStateChange }:
                     id="welcome-username"
                     placeholder="z.B. phil"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))}
+                    onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9]/g, ""))}
                     maxLength={20}
                     autoComplete="username"
                   />

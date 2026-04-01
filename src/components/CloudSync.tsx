@@ -182,7 +182,7 @@ export function CloudSync({ onSyncDone, onSyncStateChange }: CloudSyncProps) {
                 id="sync-username"
                 placeholder="z.B. leon"
                 value={username}
-                onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))}
+                onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9]/g, ""))}
                 maxLength={20}
                 autoComplete="username"
               />

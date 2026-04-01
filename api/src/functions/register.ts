@@ -17,11 +17,11 @@ async function register(request: HttpRequest, _context: InvocationContext): Prom
 
   const { username, pin } = body;
 
-  // Validate username: alphanumeric, 3-20 chars, lowercase
-  if (!username || !/^[a-z0-9]{3,20}$/.test(username)) {
+  // Validate username: alphanumeric, 3-20 chars (stored lowercase)
+  if (!username || !/^[a-zA-Z0-9]{3,20}$/.test(username)) {
     return {
       status: 400,
-      jsonBody: { error: "Benutzername muss 3-20 Zeichen lang sein (nur Kleinbuchstaben und Zahlen)" },
+      jsonBody: { error: "Benutzername muss 3-20 Zeichen lang sein (nur Buchstaben und Zahlen)" },
     };
   }
 

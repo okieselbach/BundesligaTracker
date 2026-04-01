@@ -65,7 +65,7 @@ export async function register(username: string, pin: string): Promise<void> {
     method: "POST",
     body: JSON.stringify({ username: username.toLowerCase(), pin }),
   });
-  saveSession(token, username.toLowerCase());
+  saveSession(token, username);
 }
 
 export async function login(username: string, pin: string): Promise<{ lastBackupAt: string | null }> {
@@ -73,7 +73,7 @@ export async function login(username: string, pin: string): Promise<{ lastBackup
     method: "POST",
     body: JSON.stringify({ username: username.toLowerCase(), pin }),
   });
-  saveSession(token, username.toLowerCase());
+  saveSession(token, username);
   return { lastBackupAt };
 }
 
