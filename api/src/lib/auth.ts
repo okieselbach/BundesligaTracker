@@ -19,11 +19,13 @@ export function createToken(username: string): string {
   return jwt.sign({ username }, getSecret(), { expiresIn: TOKEN_EXPIRY });
 }
 
-export function verifyToken(token: string): { username: string } | null {
+export function verifyToken(token: string): { user: { username: string } | null; error: string | null } {
   try {
-    const decoded = jwt.verify(token, getSecret()) as { username: string };
-    return decoded;
-  } catch {
-    return null;
+    const secret = getSecret();
+    const decoded = jwt.verify(token, secret) as { username: string };
+    return { user: decoded, error: null };
+  } catch (err) {
+    const secret = getSecret();
+    return { user: null, error: `${(err as Error).message} [secret=${secret.slice(0, 4)}..., tokenStart=${token.slice(0, 20)}]` };
   }
 }

@@ -9,9 +9,9 @@ async function saveBackup(request: HttpRequest, _context: InvocationContext): Pr
     return { status: 401, jsonBody: { error: "Nicht angemeldet" } };
   }
 
-  const decoded = verifyToken(authHeader.slice(7));
+  const { user: decoded, error: tokenError } = verifyToken(authHeader.slice(7));
   if (!decoded) {
-    return { status: 401, jsonBody: { error: "Sitzung abgelaufen. Bitte erneut anmelden." } };
+    return { status: 401, jsonBody: { error: `Auth: ${tokenError}` } };
   }
 
   let backupData: unknown;
