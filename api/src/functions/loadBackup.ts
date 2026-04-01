@@ -3,13 +3,12 @@ import { verifyToken } from "../lib/auth.js";
 import { downloadJson } from "../lib/storage.js";
 
 async function loadBackup(request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> {
-  // Verify JWT
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
+  const token = request.headers.get("x-auth-token");
+  if (!token) {
     return { status: 401, jsonBody: { error: "Nicht angemeldet" } };
   }
 
-  const { user: decoded, error: tokenError } = verifyToken(authHeader.slice(7));
+  const { user: decoded, error: tokenError } = verifyToken(token);
   if (!decoded) {
     return { status: 401, jsonBody: { error: `Auth: ${tokenError}` } };
   }
