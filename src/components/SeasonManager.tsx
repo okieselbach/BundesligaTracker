@@ -45,19 +45,18 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
   const [scheduleMode, setScheduleMode] = useState<"random" | "manual">("random");
   const [creating, setCreating] = useState(false);
 
-  // System selection for "default" source. Defaults to the current season's
-  // system, falling back to "de". When the source is "copy", the system is
-  // implicitly the source season's system.
-  const [defaultSystemId, setDefaultSystemId] = useState<string>(
+  // The user explicitly picks the league system at the top of the dialog.
+  // When it changes, the "copy from" dropdown filters to seasons of that
+  // system; if there are none, source flips to "default" automatically.
+  const [selectedSystemId, setSelectedSystemId] = useState<string>(
     currentSeason?.systemId ?? DEFAULT_SYSTEM_ID,
   );
 
-  // Resolve the active system from the chosen source.
-  const activeSystemId =
-    source === "copy"
-      ? seasons.find((s) => s.id === copyFromId)?.systemId ?? DEFAULT_SYSTEM_ID
-      : defaultSystemId;
+  const activeSystemId = selectedSystemId;
   const system: LeagueSystem = getSystem(activeSystemId);
+  const seasonsInSystem = seasons.filter(
+    (s) => (s.systemId ?? DEFAULT_SYSTEM_ID) === activeSystemId,
+  );
   const poolExchangeCount = system.poolExchangeCount;
   const bottomLeague = system.leagues[system.leagues.length - 1];
   // Aggregate label for the pool. For single-tier systems ("Regionalliga")
@@ -86,7 +85,10 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
 
   const handleOpen = (isOpen: boolean) => {
     if (isOpen) {
-      // Suggest next season name based on current
+      const initialSystemId = currentSeason?.systemId ?? DEFAULT_SYSTEM_ID;
+      setSelectedSystemId(initialSystemId);
+
+      // Suggest next season name based on current (works for both systems)
       if (currentSeason) {
         const match = currentSeason.name.match(/^(\d{4})\/(\d{2})$/);
         if (match) {
@@ -97,10 +99,13 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
           setName("");
         }
         setCopyFromId(currentSeason.id);
+        setSource("copy");
       } else {
         setName("2025/26");
+        setCopyFromId("");
+        setSource("default");
       }
-      setSource(currentSeason ? "copy" : "default");
+
       setProposal(null);
       setPlayoffWinners(new Map());
       setClubMap(new Map());
@@ -110,6 +115,24 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
     }
     setOpen(isOpen);
   };
+
+  // When the user picks a different league system, snap the source/copyFromId
+  // to a season of that system (or fall back to "default" seed if none exist).
+  useEffect(() => {
+    if (!open) return;
+    if (seasonsInSystem.length === 0) {
+      setSource("default");
+      setCopyFromId("");
+      return;
+    }
+    if (source === "copy") {
+      const stillValid = seasonsInSystem.find((s) => s.id === copyFromId);
+      if (!stillValid) {
+        const preferred = seasonsInSystem.find((s) => s.isCurrent) ?? seasonsInSystem[0];
+        setCopyFromId(preferred.id);
+      }
+    }
+  }, [open, selectedSystemId, seasonsInSystem, source, copyFromId]);
 
   // Load all league standings + compute full relegation proposal when copy source changes
   useEffect(() => {
@@ -317,19 +340,46 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
               </div>
 
               <div className="space-y-2">
-                <Label>Club-Zusammensetzung</Label>
-                <Select value={source} onValueChange={(v) => setSource(v as "default" | "copy")}>
+                <Label>Liga-System</Label>
+                <Select value={selectedSystemId} onValueChange={setSelectedSystemId}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="copy">Von bestehender Saison übernehmen</SelectItem>
-                    <SelectItem value="default">Standard-Clubs (Seed 2025/26)</SelectItem>
+                    {LEAGUE_SYSTEMS.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.flag} {s.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              {source === "copy" && seasons.length > 0 && (
+              <div className="space-y-2">
+                <Label>Club-Zusammensetzung</Label>
+                <Select
+                  value={source}
+                  onValueChange={(v) => setSource(v as "default" | "copy")}
+                  disabled={seasonsInSystem.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {seasonsInSystem.length > 0 && (
+                      <SelectItem value="copy">Von bestehender Saison übernehmen</SelectItem>
+                    )}
+                    <SelectItem value="default">Standard-Clubs (frischer Seed)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {seasonsInSystem.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Noch keine {system.name}-Saison vorhanden — wir starten mit dem Standard-Seed.
+                  </p>
+                )}
+              </div>
+
+              {source === "copy" && seasonsInSystem.length > 0 && (
                 <div className="space-y-2">
                   <Label>Clubs übernehmen von</Label>
                   <Select value={copyFromId} onValueChange={setCopyFromId}>
@@ -337,30 +387,9 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {seasons.map((s) => {
-                        const flag = LEAGUE_SYSTEMS.find((sy) => sy.id === (s.systemId ?? DEFAULT_SYSTEM_ID))?.flag ?? "";
-                        return (
-                          <SelectItem key={s.id} value={s.id}>
-                            {flag} {s.name}{s.isCurrent ? " (aktuell)" : ""}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {source === "default" && (
-                <div className="space-y-2">
-                  <Label>Liga-System</Label>
-                  <Select value={defaultSystemId} onValueChange={setDefaultSystemId}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LEAGUE_SYSTEMS.map((s) => (
+                      {seasonsInSystem.map((s) => (
                         <SelectItem key={s.id} value={s.id}>
-                          {s.flag} {s.name}
+                          {s.name}{s.isCurrent ? " (aktuell)" : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
