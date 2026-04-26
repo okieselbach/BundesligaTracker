@@ -111,8 +111,16 @@ export default function Home() {
       if (exists) {
         const allSeasons = await db.seasons.orderBy("createdAt").reverse().toArray();
         setSeasons(allSeasons);
-        const current = allSeasons.find((s) => s.isCurrent) ?? allSeasons[0];
-        setCurrentSeason(current);
+        // Preserve the user's currently selected season across refreshes —
+        // otherwise typing a 3.Liga score causes the UI to jump back to the
+        // DB-isCurrent season (which may belong to a different country).
+        setCurrentSeason((prev) => {
+          if (prev) {
+            const stillExists = allSeasons.find((s) => s.id === prev.id);
+            if (stillExists) return stillExists;
+          }
+          return allSeasons.find((s) => s.isCurrent) ?? allSeasons[0];
+        });
 
         // Load *all* competitions; the visible ones get derived per-season below.
         const allComps = await db.competitions.orderBy("sortOrder").toArray();
@@ -207,7 +215,22 @@ export default function Home() {
 
   const handleSeasonChange = async (seasonId: string) => {
     const season = seasons.find((s) => s.id === seasonId);
-    if (season) setCurrentSeason(season);
+    if (!season) return;
+    setCurrentSeason(season);
+
+    // Persist the choice as `isCurrent` so it survives an app restart —
+    // and so a refresh-triggered reload doesn't snap back to the previous
+    // current season.
+    if (!season.isCurrent) {
+      const previous = seasons.filter((s) => s.isCurrent && s.id !== seasonId);
+      for (const p of previous) {
+        await db.seasons.update(p.id, { isCurrent: false });
+      }
+      await db.seasons.update(seasonId, { isCurrent: true });
+      setSeasons((prev) =>
+        prev.map((s) => ({ ...s, isCurrent: s.id === seasonId })),
+      );
+    }
   };
 
   // Move club between leagues (within the same league system)
