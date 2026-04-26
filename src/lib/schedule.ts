@@ -9,8 +9,11 @@ export function generateRoundRobinSchedule(params: {
   seasonCompetitionId: Id;
   clubIds: Id[];
   doubleRound: boolean;
+  /** Label prefix for each matchday ("Spieltag", "Matchday"). Defaults to "Spieltag". */
+  matchdayLabel?: string;
 }): GeneratedSchedule {
   const { seasonCompetitionId, doubleRound } = params;
+  const matchdayLabel = params.matchdayLabel ?? "Spieltag";
   const BYE = "__BYE__";
 
   let teams = [...params.clubIds];
@@ -34,7 +37,7 @@ export function generateRoundRobinSchedule(params: {
         id: mdId,
         seasonCompetitionId,
         number: mdNo,
-        name: `Spieltag ${mdNo}`,
+        name: `${matchdayLabel} ${mdNo}`,
       });
 
       for (let i = 0; i < half; i++) {

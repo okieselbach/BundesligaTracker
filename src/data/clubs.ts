@@ -11,7 +11,9 @@ import {
 // Increment this when club data changes (logos, names, new clubs, colors).
 // The app auto-migrates the son's IndexedDB on next startup.
 // 5 = Phase 2 introduces English clubs.
-export const CLUBS_CONFIG_VERSION = 5;
+// 6 = corrected logo URLs for Aston Villa, Forest, Crystal Palace, Burnley,
+//     Norwich, Wrexham, Charlton, Millwall, Coventry, Oxford.
+export const CLUBS_CONFIG_VERSION = 6;
 
 const SYSTEM_DE = "de";
 const TIER_REGIONALLIGA = "regionalliga";

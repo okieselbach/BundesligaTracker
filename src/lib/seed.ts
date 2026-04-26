@@ -104,6 +104,7 @@ export async function seedQuickStart(
       competitionId: league.competitionId,
       clubIds,
       manual,
+      matchdayLabel: system.matchdayLabel,
     });
   }
 
@@ -129,8 +130,9 @@ async function createLeagueSeasonCompetition(opts: {
   competitionId: string;
   clubIds: string[];
   manual: boolean;
+  matchdayLabel: string;
 }) {
-  const { seasonId, competitionId, clubIds, manual } = opts;
+  const { seasonId, competitionId, clubIds, manual, matchdayLabel } = opts;
   const scId = newId("sc");
 
   await db.seasonCompetitions.add({
@@ -155,7 +157,7 @@ async function createLeagueSeasonCompetition(opts: {
         id: newId("md"),
         seasonCompetitionId: scId,
         number: i,
-        name: `Spieltag ${i}`,
+        name: `${matchdayLabel} ${i}`,
       });
     }
     await db.matchdays.bulkAdd(matchdays);
@@ -164,6 +166,7 @@ async function createLeagueSeasonCompetition(opts: {
       seasonCompetitionId: scId,
       clubIds,
       doubleRound: true,
+      matchdayLabel,
     });
     await db.matchdays.bulkAdd(matchdays);
     await db.matches.bulkAdd(matches);
@@ -275,6 +278,7 @@ export async function createSeason(opts: {
       competitionId: entry.competitionId,
       clubIds: entry.clubIds,
       manual: !!manual,
+      matchdayLabel: system.matchdayLabel,
     });
   }
 

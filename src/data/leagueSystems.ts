@@ -108,6 +108,8 @@ export interface LeagueSystem {
   /** Number of clubs exchanged between bottom league and pool each season. */
   poolExchangeCount: number;
   cup: CupConfig;
+  /** Label used for matchdays in this country ("Spieltag", "Matchday"). */
+  matchdayLabel: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -118,6 +120,7 @@ const GERMAN_SYSTEM: LeagueSystem = {
   id: "de",
   name: "Deutschland",
   flag: "🇩🇪",
+  matchdayLabel: "Spieltag",
   leagues: [
     {
       competitionId: "comp_1bl",
@@ -222,6 +225,7 @@ const ENGLISH_SYSTEM: LeagueSystem = {
   id: "en",
   name: "England",
   flag: "🇬🇧",
+  matchdayLabel: "Matchday",
   leagues: [
     {
       competitionId: "comp_pl",
