@@ -14,10 +14,13 @@ interface MatchdayViewProps {
   matches: Match[];
   clubs: Club[];
   seasonCompetitionId?: string;
+  /** Label for "matchday" in the active league system — "Spieltag" or "Matchday". */
+  matchdayLabel?: string;
   onRefresh: () => void;
 }
 
-export function MatchdayView({ matchdays, matches, clubs, seasonCompetitionId, onRefresh }: MatchdayViewProps) {
+export function MatchdayView({ matchdays, matches, clubs, seasonCompetitionId, matchdayLabel, onRefresh }: MatchdayViewProps) {
+  const mdLabel = matchdayLabel ?? "Spieltag";
   const [currentMdIndex, setCurrentMdIndex] = useState(() => {
     // Find first matchday with unplayed matches
     const idx = matchdays.findIndex((md) => {
@@ -131,7 +134,7 @@ export function MatchdayView({ matchdays, matches, clubs, seasonCompetitionId, o
                 <span className="hidden sm:inline">Begegnungen</span>
               </Button>
               <span className="text-xs text-muted-foreground">
-                Spieltag {currentMd.number} / {matchdays.length}
+                {mdLabel} {currentMd.number} / {matchdays.length}
               </span>
             </div>
           </div>

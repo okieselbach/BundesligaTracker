@@ -13,7 +13,8 @@ import {
 // 5 = Phase 2 introduces English clubs.
 // 6 = corrected logo URLs for Aston Villa, Forest, Crystal Palace, Burnley,
 //     Norwich, Wrexham, Charlton, Millwall, Coventry, Oxford.
-export const CLUBS_CONFIG_VERSION = 6;
+// 7 = rename "Spieltag X" → "Matchday X" for matchdays in English seasons.
+export const CLUBS_CONFIG_VERSION = 7;
 
 const SYSTEM_DE = "de";
 const TIER_REGIONALLIGA = "regionalliga";

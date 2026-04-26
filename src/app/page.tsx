@@ -394,6 +394,7 @@ export default function Home() {
                 matches={matches}
                 clubs={clubs}
                 seasonCompetitionId={seasonCompetition?.id}
+                matchdayLabel={getSystem(currentSeason?.systemId ?? DEFAULT_SYSTEM_ID).matchdayLabel}
                 onRefresh={refresh}
               />
             </TabsContent>
