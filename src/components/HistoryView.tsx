@@ -155,7 +155,7 @@ export function HistoryView({ open, onOpenChange, currentSeason }: HistoryViewPr
           });
         }
 
-        setCupStats(computeCupStats(cupSeasons));
+        setCupStats(computeCupStats(cupSeasons, finalRoundNumber ?? 0));
       } else {
         setCupStats([]);
       }

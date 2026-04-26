@@ -131,17 +131,12 @@ export function computeMeisterliste(
   );
 }
 
-const ROUND_ORDER: Record<string, number> = {
-  "1. Runde": 1,
-  "2. Runde": 2,
-  "Achtelfinale": 3,
-  "Viertelfinale": 4,
-  "Halbfinale": 5,
-  "Finale": 6,
-};
-
 /**
  * Berechnet Ewige Pokal-Statistik aus allen Pokal-Saisons.
+ *
+ * `finalRoundNumber` identifies the final round across systems (DFB-Pokal: 6,
+ * FA Cup: 8, ...). Comparing on round.number instead of round.name avoids
+ * the "Finale" vs "Final" pitfall.
  */
 export function computeCupStats(
   cupSeasons: {
@@ -150,6 +145,7 @@ export function computeCupStats(
     matches: { homeClubId: Id; awayClubId: Id; homeGoals?: number; awayGoals?: number; homePen?: number; awayPen?: number; cupRoundId?: string }[];
     roundMap: Map<string, { name: string; number: number }>;
   }[],
+  finalRoundNumber: number,
 ): CupStatRow[] {
   const map = new Map<Id, CupStatRow>();
 
@@ -181,6 +177,7 @@ export function computeCupStats(
 
       const round = match.cupRoundId ? season.roundMap.get(match.cupRoundId) : undefined;
       if (!round) continue;
+      const isFinal = round.number === finalRoundNumber;
 
       // Count wins
       if (typeof match.homeGoals === "number" && typeof match.awayGoals === "number") {
@@ -197,7 +194,7 @@ export function computeCupStats(
           winnerEntry.siege++;
 
           // Pokalsieger = Finale gewonnen
-          if (round.name === "Finale") {
+          if (isFinal) {
             winnerEntry.pokalsiege++;
             winnerEntry.pokalSaisons.push(season.seasonName);
           }
@@ -205,21 +202,21 @@ export function computeCupStats(
       }
 
       // Track Finale-Teilnehmer
-      if (round.name === "Finale") {
+      if (isFinal) {
         getOrCreate(match.homeClubId).finale++;
         getOrCreate(match.awayClubId).finale++;
       }
 
-      // Track beste Runde
-      const roundNum = ROUND_ORDER[round.name] ?? round.number;
+      // Track beste Runde via the round's stored number — that survives
+      // localized round names ("Achtelfinale" vs "Round of 16").
       const homeEntry = getOrCreate(match.homeClubId);
-      if (roundNum > homeEntry.besteRundeNumber) {
-        homeEntry.besteRundeNumber = roundNum;
+      if (round.number > homeEntry.besteRundeNumber) {
+        homeEntry.besteRundeNumber = round.number;
         homeEntry.besteRunde = round.name;
       }
       const awayEntry = getOrCreate(match.awayClubId);
-      if (roundNum > awayEntry.besteRundeNumber) {
-        awayEntry.besteRundeNumber = roundNum;
+      if (round.number > awayEntry.besteRundeNumber) {
+        awayEntry.besteRundeNumber = round.number;
         awayEntry.besteRunde = round.name;
       }
     }
