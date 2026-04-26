@@ -2,10 +2,17 @@ import type { Club } from "@/lib/db";
 
 // Increment this when club data changes (logos, names, new clubs, colors).
 // The app auto-migrates the son's IndexedDB on next startup.
-export const CLUBS_CONFIG_VERSION = 3;
+export const CLUBS_CONFIG_VERSION = 4;
+
+const SYSTEM_DE = "de";
+const TIER_REGIONALLIGA = "regionalliga";
+
+function tag<T extends Club>(clubs: T[], systemId: string, tier?: string): T[] {
+  return clubs.map((c) => ({ ...c, systemId, ...(tier ? { tier } : {}) }));
+}
 
 // 1. Bundesliga 2025/26
-export const CLUBS_1BL: Club[] = [
+const CLUBS_1BL_RAW: Club[] = [
   { id: "club_fcb", name: "FC Bayern München", shortName: "FCB", slug: "fc-bayern-muenchen", primaryColor: "#DC052D", secondaryColor: "#0066B2", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/1/1b/FC_Bayern_M%C3%BCnchen_logo_%282017%29.svg" },
   { id: "club_b04", name: "Bayer 04 Leverkusen", shortName: "B04", slug: "bayer-04-leverkusen", primaryColor: "#E32221", secondaryColor: "#000000", logoUrl: "https://upload.wikimedia.org/wikipedia/en/5/59/Bayer_04_Leverkusen_logo.svg" },
   { id: "club_vfb", name: "VfB Stuttgart", shortName: "VfB", slug: "vfb-stuttgart", primaryColor: "#E32219", secondaryColor: "#FFFFFF", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/e/eb/VfB_Stuttgart_1893_Logo.svg" },
@@ -27,7 +34,7 @@ export const CLUBS_1BL: Club[] = [
 ];
 
 // 2. Bundesliga 2025/26
-export const CLUBS_2BL: Club[] = [
+const CLUBS_2BL_RAW: Club[] = [
   { id: "club_s04", name: "FC Schalke 04", shortName: "S04", slug: "fc-schalke-04", primaryColor: "#004D9D", secondaryColor: "#FFFFFF", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/6/6d/FC_Schalke_04_Logo.svg" },
   { id: "club_d98", name: "SV Darmstadt 98", shortName: "D98", slug: "sv-darmstadt-98", primaryColor: "#004E9E", secondaryColor: "#FFFFFF", logoUrl: "https://upload.wikimedia.org/wikipedia/en/9/92/SV_Darmstadt_98_logo.svg" },
   { id: "club_els", name: "SV Elversberg", shortName: "SVE", slug: "sv-elversberg", primaryColor: "#009639", secondaryColor: "#FFFFFF", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/d/d4/SV_Elversberg_Logo_2021.svg" },
@@ -49,7 +56,7 @@ export const CLUBS_2BL: Club[] = [
 ];
 
 // 3. Liga 2025/26
-export const CLUBS_3BL: Club[] = [
+const CLUBS_3BL_RAW: Club[] = [
   { id: "club_cfc", name: "Energie Cottbus", shortName: "FCE", slug: "energie-cottbus", primaryColor: "#E30613", secondaryColor: "#FFFFFF", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/5/55/Logo_Energie_Cottbus.svg" },
   { id: "club_verl", name: "SC Verl", shortName: "SCV", slug: "sc-verl", primaryColor: "#004B87", secondaryColor: "#FFFFFF", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/c/ce/SC_Verl_Logo.svg" },
   { id: "club_msv", name: "MSV Duisburg", shortName: "MSV", slug: "msv-duisburg", primaryColor: "#002D72", secondaryColor: "#FFFFFF", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/0/02/Msv_duisburg_(2017).svg" },
@@ -73,7 +80,7 @@ export const CLUBS_3BL: Club[] = [
 ];
 
 // Regionalliga-Pool (4. Liga) - Bekannte Vereine fuer DFB-Pokal und 3.Liga Auf-/Abstieg
-export const CLUBS_REGIONALLIGA: Club[] = [
+const CLUBS_REGIONALLIGA_RAW: Club[] = [
   { id: "club_lok", name: "1. FC Lokomotive Leipzig", shortName: "LOK", slug: "lok-leipzig", primaryColor: "#0066B3", secondaryColor: "#FFD700", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/0/04/1._FC_Lokomotive_Leipzig_logo.svg" },
   { id: "club_hfc", name: "Hallescher FC", shortName: "HFC", slug: "hallescher-fc", primaryColor: "#E30613", secondaryColor: "#FFFFFF", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/2/21/Hallescher_FC_Logo.svg" },
   { id: "club_bfc", name: "BFC Dynamo", shortName: "BFC", slug: "bfc-dynamo", primaryColor: "#8B0000", secondaryColor: "#FFD700", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/5/50/BFC_Dynamo_logo.svg" },
@@ -102,10 +109,33 @@ export const CLUBS_REGIONALLIGA: Club[] = [
   { id: "club_wue", name: "Würzburger Kickers", shortName: "WKI", slug: "wuerzburger-kickers", primaryColor: "#E30613", secondaryColor: "#FFFFFF", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/0/0c/W%C3%BCrzburger_Kickers_Logo.svg" },
 ];
 
+// Tag every club with its system ("de") and tier (Regionalliga clubs only) so
+// pool clubs are identifiable without needing an active SeasonCompetition.
+export const CLUBS_1BL: Club[] = tag(CLUBS_1BL_RAW, SYSTEM_DE);
+export const CLUBS_2BL: Club[] = tag(CLUBS_2BL_RAW, SYSTEM_DE);
+export const CLUBS_3BL: Club[] = tag(CLUBS_3BL_RAW, SYSTEM_DE);
+export const CLUBS_REGIONALLIGA: Club[] = tag(CLUBS_REGIONALLIGA_RAW, SYSTEM_DE, TIER_REGIONALLIGA);
+
 // Backwards compatibility alias
 export const CLUBS_POKAL_EXTRA = CLUBS_REGIONALLIGA;
 
 export const ALL_CLUBS: Club[] = [...CLUBS_1BL, ...CLUBS_2BL, ...CLUBS_3BL, ...CLUBS_REGIONALLIGA];
+
+/**
+ * Initial club rosters keyed by league competition slug. Used by `seed.ts`
+ * when bootstrapping a brand-new database. New systems (England, Spain, ...)
+ * add their entries here.
+ */
+export const INITIAL_CLUBS_BY_LEAGUE_SLUG: Record<string, Club[]> = {
+  "1-bundesliga": CLUBS_1BL,
+  "2-bundesliga": CLUBS_2BL,
+  "3-liga": CLUBS_3BL,
+};
+
+/** Initial pool clubs keyed by their tier id ("regionalliga", "championship", ...). */
+export const INITIAL_POOL_CLUBS_BY_TIER: Record<string, Club[]> = {
+  "regionalliga": CLUBS_REGIONALLIGA,
+};
 
 export function getClubById(id: string): Club | undefined {
   return ALL_CLUBS.find((c) => c.id === id);

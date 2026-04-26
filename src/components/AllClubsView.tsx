@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Settings2 } from "lucide-react";
 import { getBundesligaUrl } from "@/data/clubs";
+import { getSystemByCompetitionSlug } from "@/lib/leagueSystem";
 
 interface AllClubsViewProps {
   clubs: Club[];
@@ -77,7 +78,13 @@ export function AllClubsView({ clubs, competitions, seasonCompetitions, onRefres
     .sort((a, b) => a.name.localeCompare(b.name));
 
   if (poolClubs.length > 0) {
-    groups.push({ label: "Regionalliga / Pool", clubs: poolClubs });
+    // Resolve the pool tier label from the system that owns the league
+    // competitions on screen. Falls back to "Regionalliga / Pool" for legacy
+    // data that pre-dates the system config.
+    const firstLeagueComp = leagueComps[0];
+    const system = firstLeagueComp ? getSystemByCompetitionSlug(firstLeagueComp.slug) : undefined;
+    const poolLabel = system?.poolTiers[0]?.name ?? "Regionalliga";
+    groups.push({ label: `${poolLabel} / Pool`, clubs: poolClubs });
   }
 
   if (selectedClub) {

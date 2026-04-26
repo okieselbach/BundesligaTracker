@@ -21,12 +21,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import * as sync from "@/lib/sync";
 import { exportAllData } from "@/lib/backup";
+import { getSystemByCompetitionSlug } from "@/lib/leagueSystem";
 import { toast } from "sonner";
 
 type SubTab = "spieltage" | "tabelle" | "clubs" | "ewige-tabelle";
-
-// Competition slug order for "up"/"down" moves
-const LEAGUE_ORDER = ["1-bundesliga", "2-bundesliga", "3-liga"];
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
@@ -193,18 +191,21 @@ export default function Home() {
     if (season) setCurrentSeason(season);
   };
 
-  // Move club between leagues
+  // Move club between leagues (within the same league system)
   const handleMoveClub = async (clubId: Id, direction: "up" | "down") => {
     if (!activeCompetition || !currentSeason) return;
 
     const currentSlug = activeCompetition.slug;
-    const currentIdx = LEAGUE_ORDER.indexOf(currentSlug);
+    const system = getSystemByCompetitionSlug(currentSlug);
+    if (!system) return;
+    const leagueOrder = system.leagues.map((l) => l.slug);
+    const currentIdx = leagueOrder.indexOf(currentSlug);
     if (currentIdx === -1) return;
 
     const targetIdx = direction === "up" ? currentIdx - 1 : currentIdx + 1;
-    if (targetIdx < 0 || targetIdx >= LEAGUE_ORDER.length) return;
+    if (targetIdx < 0 || targetIdx >= leagueOrder.length) return;
 
-    const targetSlug = LEAGUE_ORDER[targetIdx];
+    const targetSlug = leagueOrder[targetIdx];
     const targetComp = competitions.find((c) => c.slug === targetSlug);
     if (!targetComp) return;
 
@@ -239,8 +240,11 @@ export default function Home() {
 
   const isCup = activeCompetition?.type === "cup";
   const isLeague = activeCompetition?.type === "league";
-  const canMoveUp = isLeague && LEAGUE_ORDER.indexOf(activeCompetition?.slug ?? "") > 0;
-  const canMoveDown = isLeague && LEAGUE_ORDER.indexOf(activeCompetition?.slug ?? "") < LEAGUE_ORDER.length - 1;
+  const activeSystem = activeCompetition ? getSystemByCompetitionSlug(activeCompetition.slug) : undefined;
+  const activeLeagueOrder = activeSystem?.leagues.map((l) => l.slug) ?? [];
+  const activeIdx = activeLeagueOrder.indexOf(activeCompetition?.slug ?? "");
+  const canMoveUp = isLeague && activeIdx > 0;
+  const canMoveDown = isLeague && activeIdx >= 0 && activeIdx < activeLeagueOrder.length - 1;
   const canMove = canMoveUp || canMoveDown;
 
   return (
@@ -304,12 +308,35 @@ export default function Home() {
             clubs={clubs}
             onRefresh={refresh}
             leagueClubIds={(() => {
-              const bl1 = competitions.find((c) => c.slug === "1-bundesliga");
-              const bl2 = competitions.find((c) => c.slug === "2-bundesliga");
-              const sc1 = bl1 ? seasonCompetitions.find((sc) => sc.competitionId === bl1.id) : undefined;
-              const sc2 = bl2 ? seasonCompetitions.find((sc) => sc.competitionId === bl2.id) : undefined;
-              if (sc1 && sc2) return { bundesliga1: sc1.clubIds, bundesliga2: sc2.clubIds };
-              return undefined;
+              // Build slug → ordered clubIds map for every league in this cup's
+              // system. CupView uses this to compute pots (e.g. DFB-Pokal: top
+              // 14 of 2.BL into the Profitopf, FA Cup: PL+Champ entering R3).
+              const cupSystem = activeCompetition
+                ? getSystemByCompetitionSlug(activeCompetition.slug)
+                : undefined;
+              if (!cupSystem) return undefined;
+              const map: Record<string, Id[]> = {};
+              for (const league of cupSystem.leagues) {
+                const comp = competitions.find((c) => c.id === league.competitionId);
+                if (!comp) continue;
+                const sc = seasonCompetitions.find((s) => s.competitionId === comp.id);
+                if (sc) map[league.slug] = sc.clubIds;
+              }
+              return Object.keys(map).length > 0 ? map : undefined;
+            })()}
+            poolByTier={(() => {
+              // Map pool tier id → club ids of clubs with that tier.
+              const cupSystem = activeCompetition
+                ? getSystemByCompetitionSlug(activeCompetition.slug)
+                : undefined;
+              if (!cupSystem) return undefined;
+              const map: Record<string, Id[]> = {};
+              for (const tier of cupSystem.poolTiers) {
+                map[tier.id] = allDbClubs
+                  .filter((c) => c.tier === tier.id)
+                  .map((c) => c.id);
+              }
+              return map;
             })()}
           />
         ) : (

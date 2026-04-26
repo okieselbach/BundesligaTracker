@@ -12,6 +12,14 @@ export interface Club {
   clubUrl?: string;
   primaryColor: string;
   secondaryColor: string;
+  /**
+   * Pool tier the club belongs to when it sits outside any active league
+   * (e.g. "regionalliga" for the German system, "championship" for England).
+   * Active-league clubs leave this undefined; it is only meaningful for the pool.
+   */
+  tier?: string;
+  /** Identifies which country/system this club belongs to ("de", "en", ...). */
+  systemId?: string;
 }
 
 export interface Season {

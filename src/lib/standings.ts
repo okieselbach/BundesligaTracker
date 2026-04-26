@@ -1,4 +1,5 @@
 import type { Id, Match, SeasonCompetition } from "./db";
+import { getSystemByCompetitionSlug, positionMatches } from "./leagueSystem";
 
 export interface StandingRow {
   clubId: Id;
@@ -81,24 +82,20 @@ export function computeStandings(
 
 export type ZoneType = "cl" | "cl-quali" | "el" | "ecl" | "relegation" | "abstieg" | "aufstieg" | "aufstieg-relegation" | "abstieg-markiert" | null;
 
+/**
+ * Determine the zone (CL, abstieg, ...) for a given table position by reading
+ * the rules of the league's owning system. Unknown competitions return null.
+ */
 export function getZone(competitionSlug: string, position: number, totalTeams: number): ZoneType {
-  if (competitionSlug === "1-bundesliga") {
-    if (position <= 4) return "cl";
-    if (position === 5) return "el";
-    if (position === 6) return "ecl";
-    if (position === 16) return "relegation";
-    if (position >= 17) return "abstieg";
-  }
-  if (competitionSlug === "2-bundesliga") {
-    if (position <= 2) return "aufstieg";
-    if (position === 3) return "aufstieg-relegation";
-    if (position === 16) return "relegation";
-    if (position >= 17) return "abstieg";
-  }
-  if (competitionSlug === "3-liga") {
-    if (position <= 2) return "aufstieg";
-    if (position === 3) return "aufstieg-relegation";
-    if (position >= totalTeams - 3) return "abstieg-markiert";
+  const system = getSystemByCompetitionSlug(competitionSlug);
+  if (!system) return null;
+  const league = system.leagues.find((l) => l.slug === competitionSlug);
+  if (!league) return null;
+
+  for (const rule of league.zones) {
+    if (positionMatches(rule.positions, position, totalTeams)) {
+      return rule.type;
+    }
   }
   return null;
 }

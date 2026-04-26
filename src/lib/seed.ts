@@ -1,19 +1,87 @@
 import { db, newId, type Matchday } from "./db";
-import { CLUBS_1BL, CLUBS_2BL, CLUBS_3BL, CLUBS_REGIONALLIGA } from "@/data/clubs";
+import {
+  ALL_CLUBS,
+  INITIAL_CLUBS_BY_LEAGUE_SLUG,
+  INITIAL_POOL_CLUBS_BY_TIER,
+} from "@/data/clubs";
 import { COMPETITIONS } from "@/data/competitions";
+import {
+  DEFAULT_SYSTEM_ID,
+  getSystem,
+  type CupConfig,
+  type CupEntrantSource,
+  type LeagueSystem,
+} from "@/data/leagueSystems";
 import { generateRoundRobinSchedule } from "./schedule";
 
-// Only the first 8 Regionalliga clubs are used for the DFB-Pokal (to get 64 total)
-const POKAL_REGIONALLIGA_COUNT = 8;
+/**
+ * Resolve a list of cup-entrant sources into a flat list of club ids.
+ * Used both at season seeding (initialEntrants) and is forward-compatible
+ * for FA-Cup-style late entrants.
+ */
+function resolveCupEntrants(
+  sources: CupEntrantSource[],
+  leagueClubIdsBySlug: Record<string, string[]>,
+  poolClubIdsByTier: Record<string, string[]>,
+): string[] {
+  const result: string[] = [];
+  const seen = new Set<string>();
+  const push = (id: string) => {
+    if (!seen.has(id)) {
+      seen.add(id);
+      result.push(id);
+    }
+  };
 
-export async function seedQuickStart(seasonName: string = "2025/26", manual: boolean = false) {
+  for (const source of sources) {
+    if (source.type === "league") {
+      for (const id of leagueClubIdsBySlug[source.slug] ?? []) push(id);
+    } else if (source.type === "league-top") {
+      for (const id of (leagueClubIdsBySlug[source.slug] ?? []).slice(0, source.n)) push(id);
+    } else if (source.type === "league-bottom") {
+      const all = leagueClubIdsBySlug[source.slug] ?? [];
+      for (const id of all.slice(Math.max(0, all.length - source.n))) push(id);
+    } else if (source.type === "pool") {
+      const ids = source.tierId
+        ? poolClubIdsByTier[source.tierId] ?? []
+        : Object.values(poolClubIdsByTier).flat();
+      for (const id of ids.slice(0, source.count)) push(id);
+    }
+  }
+  return result;
+}
+
+/**
+ * Build the initial cup club list from a system's CupConfig + the leagues we
+ * just seeded. Pool entries are taken in order from the system's tier roster.
+ */
+function buildInitialCupClubIds(
+  cup: CupConfig,
+  leagueClubIdsBySlug: Record<string, string[]>,
+): string[] {
+  const poolClubIdsByTier: Record<string, string[]> = {};
+  for (const tierId of Object.keys(INITIAL_POOL_CLUBS_BY_TIER)) {
+    poolClubIdsByTier[tierId] = INITIAL_POOL_CLUBS_BY_TIER[tierId].map((c) => c.id);
+  }
+  return resolveCupEntrants(cup.initialEntrants, leagueClubIdsBySlug, poolClubIdsByTier);
+}
+
+/**
+ * Quick-start a fresh database with the default system.
+ * No-op if any season already exists.
+ */
+export async function seedQuickStart(
+  seasonName: string = "2025/26",
+  manual: boolean = false,
+  systemId: string = DEFAULT_SYSTEM_ID,
+) {
   const existingSeasons = await db.seasons.count();
   if (existingSeasons > 0) return;
 
-  // Add all clubs to DB (all leagues + full Regionalliga pool)
-  const allClubs = [...CLUBS_1BL, ...CLUBS_2BL, ...CLUBS_3BL, ...CLUBS_REGIONALLIGA];
-  await db.clubs.bulkPut(allClubs);
+  const system = getSystem(systemId);
 
+  // Add ALL_CLUBS regardless of system (each club is tagged with its systemId).
+  await db.clubs.bulkPut(ALL_CLUBS);
   await db.competitions.bulkPut(COMPETITIONS);
 
   const seasonId = newId("s");
@@ -24,81 +92,89 @@ export async function seedQuickStart(seasonName: string = "2025/26", manual: boo
     createdAt: Date.now(),
   });
 
-  // Create league season-competitions + schedules
-  const leagueConfigs = [
-    { comp: COMPETITIONS[0], clubs: CLUBS_1BL },
-    { comp: COMPETITIONS[1], clubs: CLUBS_2BL },
-    { comp: COMPETITIONS[2], clubs: CLUBS_3BL },
-  ];
+  const leagueClubIdsBySlug: Record<string, string[]> = {};
 
-  for (const { comp, clubs } of leagueConfigs) {
-    const scId = newId("sc");
+  for (const league of system.leagues) {
+    const clubs = INITIAL_CLUBS_BY_LEAGUE_SLUG[league.slug] ?? [];
     const clubIds = clubs.map((c) => c.id);
-
-    await db.seasonCompetitions.add({
-      id: scId,
+    leagueClubIdsBySlug[league.slug] = clubIds;
+    await createLeagueSeasonCompetition({
       seasonId,
-      competitionId: comp.id,
+      competitionId: league.competitionId,
       clubIds,
+      manual,
+    });
+  }
+
+  // Cup season-competition (DFB-Pokal / FA Cup / ...)
+  const cupClubIds = buildInitialCupClubIds(system.cup, leagueClubIdsBySlug);
+  if (cupClubIds.length > 0) {
+    await db.seasonCompetitions.add({
+      id: newId("sc"),
+      seasonId,
+      competitionId: system.cup.competitionId,
+      clubIds: cupClubIds,
       pointsWin: 3,
       pointsDraw: 1,
       pointsLoss: 0,
-      hasDoubleRound: true,
+      hasDoubleRound: false,
       createdAt: Date.now(),
     });
-
-    if (manual) {
-      // Create empty matchdays (no matches) for manual input
-      const n = clubIds.length % 2 === 0 ? clubIds.length - 1 : clubIds.length;
-      const totalMatchdays = n * 2; // Hin + Rueckrunde
-      const matchdays: Matchday[] = [];
-      for (let i = 1; i <= totalMatchdays; i++) {
-        matchdays.push({
-          id: newId("md"),
-          seasonCompetitionId: scId,
-          number: i,
-          name: `Spieltag ${i}`,
-        });
-      }
-      await db.matchdays.bulkAdd(matchdays);
-    } else {
-      const { matchdays, matches } = generateRoundRobinSchedule({
-        seasonCompetitionId: scId,
-        clubIds,
-        doubleRound: true,
-      });
-
-      await db.matchdays.bulkAdd(matchdays);
-      await db.matches.bulkAdd(matches);
-    }
   }
+}
 
-  // DFB Pokal: 56 Liga-Clubs + 8 Regionalliga = 64 Teams
-  const dfbComp = COMPETITIONS[3];
-  const dfbScId = newId("sc");
-  const ligaClubIds = [...CLUBS_1BL, ...CLUBS_2BL, ...CLUBS_3BL].map((c) => c.id);
-  const pokalRegionalliga = CLUBS_REGIONALLIGA.slice(0, POKAL_REGIONALLIGA_COUNT).map((c) => c.id);
-  const dfbClubIds = [...ligaClubIds, ...pokalRegionalliga];
+async function createLeagueSeasonCompetition(opts: {
+  seasonId: string;
+  competitionId: string;
+  clubIds: string[];
+  manual: boolean;
+}) {
+  const { seasonId, competitionId, clubIds, manual } = opts;
+  const scId = newId("sc");
 
   await db.seasonCompetitions.add({
-    id: dfbScId,
+    id: scId,
     seasonId,
-    competitionId: dfbComp.id,
-    clubIds: dfbClubIds,
+    competitionId,
+    clubIds,
     pointsWin: 3,
     pointsDraw: 1,
     pointsLoss: 0,
-    hasDoubleRound: false,
+    hasDoubleRound: true,
     createdAt: Date.now(),
   });
+
+  if (manual) {
+    // Empty matchdays — user fills in fixtures themselves.
+    const n = clubIds.length % 2 === 0 ? clubIds.length - 1 : clubIds.length;
+    const totalMatchdays = n * 2;
+    const matchdays: Matchday[] = [];
+    for (let i = 1; i <= totalMatchdays; i++) {
+      matchdays.push({
+        id: newId("md"),
+        seasonCompetitionId: scId,
+        number: i,
+        name: `Spieltag ${i}`,
+      });
+    }
+    await db.matchdays.bulkAdd(matchdays);
+  } else {
+    const { matchdays, matches } = generateRoundRobinSchedule({
+      seasonCompetitionId: scId,
+      clubIds,
+      doubleRound: true,
+    });
+    await db.matchdays.bulkAdd(matchdays);
+    await db.matches.bulkAdd(matches);
+  }
 }
 
 export interface FullRelegationChanges {
   /** Clubs moving between leagues (direct promotions/relegations + resolved playoffs) */
   movements: { clubId: string; from: string; to: string }[];
-  /** 3. Liga: clubs leaving (positions 17-20) */
+  /** Bottom-league clubs leaving to the pool */
   thirdLeagueAbsteigerIds: string[];
-  /** Regionalliga clubs entering 3. Liga */
+  /** Pool clubs entering the bottom league */
   thirdLeagueAufsteigerIds: string[];
 }
 
@@ -109,18 +185,18 @@ export async function createSeason(opts: {
   copyFromSeasonId?: string;
   manual?: boolean;
   relegationChanges?: FullRelegationChanges;
+  systemId?: string;
 }): Promise<string> {
   const { name, makeCurrent, copyFromSeasonId, manual, relegationChanges } = opts;
+  const system: LeagueSystem = getSystem(opts.systemId ?? DEFAULT_SYSTEM_ID);
 
-  // Ensure competitions + clubs exist (including new Regionalliga clubs)
+  // Ensure competitions + clubs exist
   await db.competitions.bulkPut(COMPETITIONS);
-  const allClubs = [...CLUBS_1BL, ...CLUBS_2BL, ...CLUBS_3BL, ...CLUBS_REGIONALLIGA];
-  await db.clubs.bulkPut(allClubs);
+  await db.clubs.bulkPut(ALL_CLUBS);
 
   const seasonId = newId("s");
 
   if (makeCurrent) {
-    // Un-mark any existing current season
     const currentSeasons = await db.seasons.filter((s) => s.isCurrent).toArray();
     for (const s of currentSeasons) {
       await db.seasons.update(s.id, { isCurrent: false });
@@ -134,128 +210,94 @@ export async function createSeason(opts: {
     createdAt: Date.now(),
   });
 
-  // Determine club assignments per competition
-  let leagueClubMap: { compId: string; clubIds: string[] }[];
-  let dfbClubIds: string[];
+  // Determine club assignments per league
+  let leagueClubMap: { competitionId: string; slug: string; clubIds: string[] }[];
 
   if (copyFromSeasonId) {
-    // Copy from existing season
+    // Copy from existing season — preserve system layout
     const sourceSCs = await db.seasonCompetitions
       .where("seasonId")
       .equals(copyFromSeasonId)
       .toArray();
 
-    leagueClubMap = sourceSCs
-      .filter((sc) => {
-        const comp = COMPETITIONS.find((c) => c.id === sc.competitionId);
-        return comp?.type === "league";
+    leagueClubMap = system.leagues
+      .map((league) => {
+        const sourceSC = sourceSCs.find((sc) => sc.competitionId === league.competitionId);
+        return {
+          competitionId: league.competitionId,
+          slug: league.slug,
+          clubIds: sourceSC ? [...sourceSC.clubIds] : [],
+        };
       })
-      .map((sc) => ({ compId: sc.competitionId, clubIds: [...sc.clubIds] }));
+      .filter((entry) => entry.clubIds.length > 0);
 
     // Apply relegation changes if provided
     if (relegationChanges) {
-      const slugToCompId = (slug: string) =>
-        COMPETITIONS.find((c) => c.slug === slug)?.id;
-
-      // Apply inter-league movements (promotions, relegations, resolved playoffs)
+      // Inter-league movements (promotions, relegations, resolved playoffs)
       for (const mv of relegationChanges.movements) {
-        const fromCompId = slugToCompId(mv.from);
-        const toCompId = slugToCompId(mv.to);
-        if (!fromCompId || !toCompId) continue;
-
-        const fromEntry = leagueClubMap.find((e) => e.compId === fromCompId);
-        const toEntry = leagueClubMap.find((e) => e.compId === toCompId);
+        const fromEntry = leagueClubMap.find((e) => e.slug === mv.from);
+        const toEntry = leagueClubMap.find((e) => e.slug === mv.to);
         if (fromEntry && toEntry) {
           fromEntry.clubIds = fromEntry.clubIds.filter((id) => id !== mv.clubId);
           toEntry.clubIds.push(mv.clubId);
         }
       }
 
-      // Apply 3. Liga Absteiger/Aufsteiger (Regionalliga exchange)
-      if (relegationChanges.thirdLeagueAbsteigerIds.length > 0) {
-        const thirdLigaCompId = slugToCompId("3-liga");
-        if (thirdLigaCompId) {
-          const entry = leagueClubMap.find((e) => e.compId === thirdLigaCompId);
-          if (entry) {
-            entry.clubIds = entry.clubIds.filter(
-              (id) => !relegationChanges.thirdLeagueAbsteigerIds.includes(id),
-            );
-            entry.clubIds.push(...relegationChanges.thirdLeagueAufsteigerIds);
-          }
+      // Bottom-league ↔ pool exchange
+      const bottomLeague = system.leagues[system.leagues.length - 1];
+      if (bottomLeague && relegationChanges.thirdLeagueAbsteigerIds.length > 0) {
+        const entry = leagueClubMap.find((e) => e.slug === bottomLeague.slug);
+        if (entry) {
+          entry.clubIds = entry.clubIds.filter(
+            (id) => !relegationChanges.thirdLeagueAbsteigerIds.includes(id),
+          );
+          entry.clubIds.push(...relegationChanges.thirdLeagueAufsteigerIds);
         }
       }
     }
-
-    // DFB-Pokal: rebuild from final league compositions (all 56 league clubs + 8 Regionalliga)
-    // This avoids the bug where Regionalliga teams promoted to 3. Liga were already in the
-    // Pokal, causing the incremental patch to lose teams.
-    const allLeagueClubIds = leagueClubMap.flatMap((e) => e.clubIds);
-    const leagueSet = new Set(allLeagueClubIds);
-    const regionalligaPool = CLUBS_REGIONALLIGA
-      .map((c) => c.id)
-      .filter((id) => !leagueSet.has(id));
-    dfbClubIds = [...allLeagueClubIds, ...regionalligaPool.slice(0, POKAL_REGIONALLIGA_COUNT)];
   } else {
-    // Use seed defaults
-    leagueClubMap = [
-      { compId: COMPETITIONS[0].id, clubIds: CLUBS_1BL.map((c) => c.id) },
-      { compId: COMPETITIONS[1].id, clubIds: CLUBS_2BL.map((c) => c.id) },
-      { compId: COMPETITIONS[2].id, clubIds: CLUBS_3BL.map((c) => c.id) },
-    ];
-    const ligaIds = [...CLUBS_1BL, ...CLUBS_2BL, ...CLUBS_3BL].map((c) => c.id);
-    const pokalRegionalliga = CLUBS_REGIONALLIGA.slice(0, POKAL_REGIONALLIGA_COUNT).map((c) => c.id);
-    dfbClubIds = [...ligaIds, ...pokalRegionalliga];
+    // Use seed defaults: each league gets its initial roster
+    leagueClubMap = system.leagues.map((league) => ({
+      competitionId: league.competitionId,
+      slug: league.slug,
+      clubIds: (INITIAL_CLUBS_BY_LEAGUE_SLUG[league.slug] ?? []).map((c) => c.id),
+    }));
   }
 
   // Create league season-competitions + schedules
-  for (const { compId, clubIds } of leagueClubMap) {
-    const scId = newId("sc");
-    await db.seasonCompetitions.add({
-      id: scId,
+  const leagueClubIdsBySlug: Record<string, string[]> = {};
+  for (const entry of leagueClubMap) {
+    leagueClubIdsBySlug[entry.slug] = entry.clubIds;
+    await createLeagueSeasonCompetition({
       seasonId,
-      competitionId: compId,
-      clubIds,
-      pointsWin: 3,
-      pointsDraw: 1,
-      pointsLoss: 0,
-      hasDoubleRound: true,
-      createdAt: Date.now(),
+      competitionId: entry.competitionId,
+      clubIds: entry.clubIds,
+      manual: !!manual,
     });
-
-    if (manual) {
-      // Create empty matchdays for manual input
-      const n = clubIds.length % 2 === 0 ? clubIds.length - 1 : clubIds.length;
-      const totalMatchdays = n * 2;
-      const matchdays: Matchday[] = [];
-      for (let i = 1; i <= totalMatchdays; i++) {
-        matchdays.push({
-          id: newId("md"),
-          seasonCompetitionId: scId,
-          number: i,
-          name: `Spieltag ${i}`,
-        });
-      }
-      await db.matchdays.bulkAdd(matchdays);
-    } else {
-      const { matchdays, matches } = generateRoundRobinSchedule({
-        seasonCompetitionId: scId,
-        clubIds,
-        doubleRound: true,
-      });
-
-      await db.matchdays.bulkAdd(matchdays);
-      await db.matches.bulkAdd(matches);
-    }
   }
 
-  // DFB Pokal
-  if (dfbClubIds.length > 0) {
-    const dfbScId = newId("sc");
+  // Cup: rebuild from final league compositions + remaining pool clubs.
+  // Pool excludes any club currently assigned to an active league (avoids the
+  // bug where a promoted Regionalliga team ends up double-counted).
+  const allLeagueClubIds = new Set(leagueClubMap.flatMap((e) => e.clubIds));
+  const poolClubIdsByTier: Record<string, string[]> = {};
+  for (const tier of system.poolTiers) {
+    poolClubIdsByTier[tier.id] = (INITIAL_POOL_CLUBS_BY_TIER[tier.id] ?? [])
+      .map((c) => c.id)
+      .filter((id) => !allLeagueClubIds.has(id));
+  }
+  const cupClubIds = resolveCupEntrants(
+    system.cup.initialEntrants,
+    leagueClubIdsBySlug,
+    poolClubIdsByTier,
+  );
+
+  if (cupClubIds.length > 0) {
     await db.seasonCompetitions.add({
-      id: dfbScId,
+      id: newId("sc"),
       seasonId,
-      competitionId: "comp_dfb",
-      clubIds: dfbClubIds,
+      competitionId: system.cup.competitionId,
+      clubIds: cupClubIds,
       pointsWin: 3,
       pointsDraw: 1,
       pointsLoss: 0,

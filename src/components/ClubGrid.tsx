@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { ExternalLink, ArrowUp, ArrowDown, Settings2 } from "lucide-react";
 import { getBundesligaUrl } from "@/data/clubs";
 import type { Match } from "@/lib/db";
+import { getSystemByCompetitionSlug } from "@/lib/leagueSystem";
+import { COMPETITIONS } from "@/data/competitions";
 
 interface ClubGridProps {
   clubs: Club[];
@@ -22,12 +24,21 @@ interface ClubGridProps {
   onRefresh: () => void;
 }
 
-const LEAGUE_NAMES: Record<string, string> = {
-  "1-bundesliga": "1. Bundesliga",
-  "2-bundesliga": "2. Bundesliga",
-  "3-liga": "3. Liga",
-};
-const LEAGUE_ORDER = ["1-bundesliga", "2-bundesliga", "3-liga"];
+/** Resolve the league order + display names for the system that owns a slug. */
+function getLeagueLookups(competitionSlug?: string): {
+  order: string[];
+  names: Record<string, string>;
+} {
+  const system = competitionSlug ? getSystemByCompetitionSlug(competitionSlug) : undefined;
+  if (!system) return { order: [], names: {} };
+  const order = system.leagues.map((l) => l.slug);
+  const names: Record<string, string> = {};
+  for (const league of system.leagues) {
+    const comp = COMPETITIONS.find((c) => c.id === league.competitionId);
+    if (comp) names[league.slug] = comp.name;
+  }
+  return { order, names };
+}
 
 export function ClubGrid({ clubs, competitionSlug, allMatches, allClubs, seasonCompetitionId, onMoveClub, leagueName, onRefresh }: ClubGridProps) {
   const [selectedClub, setSelectedClub] = useState<Club | null>(null);
@@ -40,11 +51,12 @@ export function ClubGrid({ clubs, competitionSlug, allMatches, allClubs, seasonC
     }
   }, [showEditor]);
 
-  const currentIdx = LEAGUE_ORDER.indexOf(competitionSlug ?? "");
+  const { order: leagueOrder, names: leagueNames } = getLeagueLookups(competitionSlug);
+  const currentIdx = leagueOrder.indexOf(competitionSlug ?? "");
   const canMoveUp = currentIdx > 0;
-  const canMoveDown = currentIdx >= 0 && currentIdx < LEAGUE_ORDER.length - 1;
-  const targetUp = canMoveUp ? LEAGUE_NAMES[LEAGUE_ORDER[currentIdx - 1]] : "";
-  const targetDown = canMoveDown ? LEAGUE_NAMES[LEAGUE_ORDER[currentIdx + 1]] : "";
+  const canMoveDown = currentIdx >= 0 && currentIdx < leagueOrder.length - 1;
+  const targetUp = canMoveUp ? leagueNames[leagueOrder[currentIdx - 1]] : "";
+  const targetDown = canMoveDown ? leagueNames[leagueOrder[currentIdx + 1]] : "";
 
   const handleMove = (club: Club, direction: "up" | "down") => {
     const target = direction === "up" ? targetUp : targetDown;

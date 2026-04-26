@@ -3,7 +3,13 @@
 import { useState } from "react";
 import type { Club, CupRound, Id, Match, SeasonCompetition } from "@/lib/db";
 import { db, newId } from "@/lib/db";
-import { createCupRound, getCupWinner, allRoundMatchesDecided, CUP_ROUND_NAMES } from "@/lib/cup";
+import {
+  createCupRound,
+  getCupWinner,
+  allRoundMatchesDecided,
+  buildPotsForRound,
+  getRoundName,
+} from "@/lib/cup";
 import { MatchCard } from "./MatchCard";
 import { MatchPairingEditor, type Pairing } from "./MatchPairingEditor";
 import { Button } from "@/components/ui/button";
@@ -12,9 +18,8 @@ import { Badge } from "@/components/ui/badge";
 import { Shuffle, Pencil } from "lucide-react";
 import { Confetti } from "./Confetti";
 import { ClubLogo } from "./ClubLogo";
-
-/** Number of top 2.BL teams that go into the Profitopf (real DFB-Pokal rule) */
-const ZWEITLIGA_PROFITOPF_COUNT = 14;
+import { getSystemByCompetitionSlug } from "@/lib/leagueSystem";
+import { COMPETITIONS } from "@/data/competitions";
 
 interface CupViewProps {
   seasonCompetition: SeasonCompetition | null;
@@ -22,75 +27,78 @@ interface CupViewProps {
   matches: Match[];
   clubs: Club[];
   onRefresh: () => void;
-  leagueClubIds?: { bundesliga1: Id[]; bundesliga2: Id[] };
+  /** Map of league slug → ordered club ids in that league (for cup pot rules). */
+  leagueClubIds?: Record<string, Id[]>;
+  /** Map of pool tier id → club ids of that tier (for cup pool entrants). */
+  poolByTier?: Record<string, Id[]>;
 }
 
-export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefresh, leagueClubIds }: CupViewProps) {
+export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefresh, leagueClubIds, poolByTier }: CupViewProps) {
   const [activeRound, setActiveRound] = useState<number>(0);
   const [manualFirstRound, setManualFirstRound] = useState(false);
   const [manualNextRound, setManualNextRound] = useState(false);
   const [editingCurrentRound, setEditingCurrentRound] = useState(false);
   const clubMap = new Map(clubs.map((c) => [c.id, c]));
 
+  // Resolve the cup configuration + display name via the season's competition slug.
+  const cupCompetition = seasonCompetition
+    ? COMPETITIONS.find((c) => c.id === seasonCompetition.competitionId)
+    : undefined;
+  const cupConfig = (() => {
+    if (!cupCompetition) return undefined;
+    const system = getSystemByCompetitionSlug(cupCompetition.slug);
+    if (!system || system.cup.slug !== cupCompetition.slug) return undefined;
+    return system.cup;
+  })();
+  const cupTitle = cupCompetition?.name ?? "Pokal";
+
+  /** Does the given round use a two-pot draw? Used for button labels. */
+  const roundUsesPots = (roundNumber: number): boolean => {
+    const def = cupConfig?.rounds.find((r) => r.number === roundNumber);
+    return def?.draw.type === "pots";
+  };
+
   if (!seasonCompetition) {
     return (
       <Card className="border-border bg-card">
         <CardContent className="py-12 text-center text-muted-foreground">
-          Kein DFB-Pokal Wettbewerb gefunden.
+          Kein Pokal-Wettbewerb gefunden.
         </CardContent>
       </Card>
     );
   }
 
-  // Build two pots for Round 1 (real DFB-Pokal rules):
-  // Profitopf (32): 1.BL (18) + top 14 of 2.BL
-  // Amateurtopf (32): bottom 4 of 2.BL + 3.Liga (20) + Regionalliga (8)
+  const lookupLeagueClubIds = leagueClubIds ?? {};
+  const lookupPoolByTier = poolByTier ?? {};
+
+  /** Build pots for round 1 from the season-competition's full participant list. */
   const buildFirstRoundPots = (): { pot1: Id[]; pot2: Id[] } | undefined => {
-    if (!leagueClubIds) return undefined;
-    const bl2 = leagueClubIds.bundesliga2; // ordered by position from season setup
-
-    const pot2: Id[] = [...leagueClubIds.bundesliga1]; // all 1.BL
-    const bl2Profi = bl2.slice(0, ZWEITLIGA_PROFITOPF_COUNT); // top 14 of 2.BL
-    const bl2Amateur = bl2.slice(ZWEITLIGA_PROFITOPF_COUNT); // bottom 4 of 2.BL
-    pot2.push(...bl2Profi);
-
-    const profiSet = new Set(pot2);
-    const pot1: Id[] = [...bl2Amateur]; // bottom 4 of 2.BL
-    for (const clubId of seasonCompetition.clubIds) {
-      if (!profiSet.has(clubId) && !bl2Amateur.includes(clubId)) {
-        pot1.push(clubId); // 3.Liga + Regionalliga
-      }
-    }
-
-    if (pot1.length === 0 || pot2.length === 0) return undefined;
-    return { pot1, pot2 };
+    return buildPotsForRound(
+      cupConfig,
+      1,
+      seasonCompetition.clubIds,
+      lookupLeagueClubIds,
+      lookupPoolByTier,
+    );
   };
 
-  // Build two pots for Round 2:
-  // Profitopf: surviving 1.BL + 2.BL teams, Amateurtopf: rest
-  // If one pot empties, remaining teams from the other pot play each other
-  const buildSecondRoundPots = (winnerIds: Id[]): { pot1: Id[]; pot2: Id[] } | undefined => {
-    if (!leagueClubIds) return undefined;
-    const topLeagueIds = new Set([
-      ...leagueClubIds.bundesliga1,
-      ...leagueClubIds.bundesliga2,
-    ]);
-    const pot1: Id[] = []; // Amateure (Heimrecht)
-    const pot2: Id[] = []; // 1.BL + 2.BL
-    for (const id of winnerIds) {
-      if (topLeagueIds.has(id)) {
-        pot2.push(id);
-      } else {
-        pot1.push(id);
-      }
-    }
-    if (pot1.length === 0 || pot2.length === 0) return undefined;
-    return { pot1, pot2 };
+  /** Build pots for the subsequent round from the surviving winners. */
+  const buildPotsForNextRound = (
+    nextRoundNumber: number,
+    winnerIds: Id[],
+  ): { pot1: Id[]; pot2: Id[] } | undefined => {
+    return buildPotsForRound(
+      cupConfig,
+      nextRoundNumber,
+      winnerIds,
+      lookupLeagueClubIds,
+      lookupPoolByTier,
+    );
   };
 
   const handleStartFirstRound = async () => {
     const roundNumber = 1;
-    const roundName = CUP_ROUND_NAMES[roundNumber] || `Runde ${roundNumber}`;
+    const roundName = getRoundName(cupConfig, roundNumber);
     const pots = buildFirstRoundPots();
     const { round, matches: newMatches } = createCupRound({
       seasonCompetitionId: seasonCompetition.id,
@@ -107,7 +115,7 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefres
 
   const handleManualFirstRound = async (pairings: Pairing[]) => {
     const roundNumber = 1;
-    const roundName = CUP_ROUND_NAMES[roundNumber] || `Runde ${roundNumber}`;
+    const roundName = getRoundName(cupConfig, roundNumber);
     const roundId = newId("cr");
 
     const round: CupRound = {
@@ -140,10 +148,11 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefres
 
     const winners = roundMatches.map((m) => getCupWinner(m)!).filter(Boolean);
     const nextNumber = lastRound.number + 1;
-    const nextName = CUP_ROUND_NAMES[nextNumber] || `Runde ${nextNumber}`;
+    const nextName = getRoundName(cupConfig, nextNumber);
 
-    // Round 2: two-pot draw (Pro vs Amateur), Round 3+: free draw (single pot)
-    const pots = nextNumber === 2 ? buildSecondRoundPots(winners) : undefined;
+    // Pot strategy is read from the cup config (Bundesliga: rounds 1+2 have
+    // pots, rest are free; FA Cup: all free). undefined = free draw.
+    const pots = buildPotsForNextRound(nextNumber, winners);
 
     const { round, matches: newMatches } = createCupRound({
       seasonCompetitionId: seasonCompetition.id,
@@ -163,7 +172,7 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefres
     if (!lastRound) return;
 
     const nextNumber = lastRound.number + 1;
-    const nextName = CUP_ROUND_NAMES[nextNumber] || `Runde ${nextNumber}`;
+    const nextName = getRoundName(cupConfig, nextNumber);
     const roundId = newId("cr");
 
     const round: CupRound = {
@@ -248,14 +257,14 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefres
         <Card className="border-border bg-card">
           <CardContent className="py-12 text-center">
             <div className="mb-4 text-4xl">&#127942;</div>
-            <h3 className="mb-2 text-lg font-semibold">DFB-Pokal</h3>
+            <h3 className="mb-2 text-lg font-semibold">{cupTitle}</h3>
             <p className="mb-6 text-sm text-muted-foreground">
               {seasonCompetition.clubIds.length} Teams sind bereit.
             </p>
             <div className="flex justify-center gap-3">
               <Button onClick={handleStartFirstRound} className="gap-2">
                 <Shuffle className="h-4 w-4" />
-                {buildFirstRoundPots() ? "Auslosen (2 Töpfe)" : "Auslosen"}
+                {roundUsesPots(1) && buildFirstRoundPots() ? "Auslosen (2 Töpfe)" : "Auslosen"}
               </Button>
               <Button variant="outline" onClick={() => setManualFirstRound(true)} className="gap-2">
                 <Pencil className="h-4 w-4" />
@@ -268,8 +277,8 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefres
         <MatchPairingEditor
           open={manualFirstRound}
           onOpenChange={setManualFirstRound}
-          title="1. Runde - Begegnungen manuell erstellen"
-          description="Erstelle die Paarungen für die 1. Runde des DFB-Pokals."
+          title={`${getRoundName(cupConfig, 1)} - Begegnungen manuell erstellen`}
+          description={`Erstelle die Paarungen für die ${getRoundName(cupConfig, 1)} des ${cupTitle}.`}
           availableClubs={allCupClubs}
           onSave={handleManualFirstRound}
         />
@@ -300,7 +309,7 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefres
       <Card className="border-border bg-card">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">DFB-Pokal</CardTitle>
+            <CardTitle className="text-lg">{cupTitle}</CardTitle>
             <div className="flex items-center gap-2">
               {/* Edit current round pairings */}
               <Button
@@ -316,7 +325,7 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefres
               {isLastRound && allDecided && !isFinal && roundMatches.length > 1 && (
                 <>
                   <Button onClick={handleNextRound} size="sm" className="gap-1">
-                    <Shuffle className="h-3.5 w-3.5" /> {currentRound?.number === 1 ? "Auslosen (2 Töpfe)" : "Auslosen"}
+                    <Shuffle className="h-3.5 w-3.5" /> {roundUsesPots((currentRound?.number ?? 0) + 1) ? "Auslosen (2 Töpfe)" : "Auslosen"}
                   </Button>
                   <Button variant="outline" onClick={() => setManualNextRound(true)} size="sm" className="gap-1">
                     <Pencil className="h-3.5 w-3.5" /> Manuell
@@ -387,7 +396,7 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefres
       <MatchPairingEditor
         open={manualNextRound}
         onOpenChange={setManualNextRound}
-        title={`${CUP_ROUND_NAMES[(cupRounds[cupRounds.length - 1]?.number ?? 0) + 1] || "Nächste Runde"} - Begegnungen manuell`}
+        title={`${getRoundName(cupConfig, (cupRounds[cupRounds.length - 1]?.number ?? 0) + 1)} - Begegnungen manuell`}
         description="Erstelle die Paarungen für die nächste Runde."
         availableClubs={getWinnersForNextRound()}
         onSave={handleManualNextRound}

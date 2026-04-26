@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Trash2 } from "lucide-react";
-import type { Season, Club, Id } from "@/lib/db";
+import type { Season, Club } from "@/lib/db";
 import { db } from "@/lib/db";
 import { createSeason, deleteSeason } from "@/lib/seed";
 import type { FullRelegationChanges } from "@/lib/seed";
@@ -29,8 +29,7 @@ import { computeStandings } from "@/lib/standings";
 import { computeRelegationProposal, type RelegationProposal } from "@/lib/relegation";
 import { ClubLogo } from "./ClubLogo";
 import { COMPETITIONS } from "@/data/competitions";
-
-const ABSTIEG_COUNT = 4;
+import { DEFAULT_SYSTEM_ID, getSystem, type LeagueSystem } from "@/data/leagueSystems";
 
 interface SeasonManagerProps {
   seasons: Season[];
@@ -45,6 +44,20 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
   const [copyFromId, setCopyFromId] = useState<string>("");
   const [scheduleMode, setScheduleMode] = useState<"random" | "manual">("random");
   const [creating, setCreating] = useState(false);
+
+  // For Phase 1 we always use the default (German) system. In Phase 2 the
+  // active system will be derived from the season being copied / created.
+  const system: LeagueSystem = getSystem(DEFAULT_SYSTEM_ID);
+  const poolExchangeCount = system.poolExchangeCount;
+  const poolTierLabel = system.poolTiers[0]?.name ?? "Pool";
+  const bottomLeague = system.leagues[system.leagues.length - 1];
+
+  /** Short label for a league slug ("1. BL", "Premier League", ...). */
+  const leagueShortName = (slug: string): string => {
+    const comp = COMPETITIONS.find((c) => c.slug === slug);
+    return comp?.shortName ?? slug;
+  };
+  const bottomLeagueShort = bottomLeague ? leagueShortName(bottomLeague.slug) : "";
 
   // Full relegation state
   const [proposal, setProposal] = useState<RelegationProposal | null>(null);
@@ -108,12 +121,10 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
           .equals(copyFromId)
           .toArray();
 
-        // Load standings for all 3 leagues
-        const leagueSlugs = ["1-bundesliga", "2-bundesliga", "3-liga"] as const;
-        const standingsMap: Record<string, import("@/lib/standings").StandingRow[]> = {};
-
-        for (const slug of leagueSlugs) {
-          const comp = COMPETITIONS.find((c) => c.slug === slug);
+        // Load standings for every league in the active system
+        const standingsBySlug: Record<string, import("@/lib/standings").StandingRow[]> = {};
+        for (const league of system.leagues) {
+          const comp = COMPETITIONS.find((c) => c.id === league.competitionId);
           if (!comp) continue;
           const sc = scs.find((s) => s.competitionId === comp.id);
           if (!sc) continue;
@@ -124,26 +135,22 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
             .toArray();
           const playedMatches = matches.filter((m) => typeof m.homeGoals === "number");
 
-          if (playedMatches.length > 0) {
-            standingsMap[slug] = computeStandings(sc, playedMatches);
-          } else {
-            standingsMap[slug] = [];
-          }
+          standingsBySlug[league.slug] =
+            playedMatches.length > 0 ? computeStandings(sc, playedMatches) : [];
         }
 
-        // Compute full relegation proposal
+        // Compute full relegation proposal via the system config
         const prop = computeRelegationProposal({
-          standings1BL: standingsMap["1-bundesliga"] || [],
-          standings2BL: standingsMap["2-bundesliga"] || [],
-          standings3BL: standingsMap["3-liga"] || [],
+          systemId: system.id,
+          standingsBySlug,
         });
         setProposal(prop);
         setPlayoffWinners(new Map());
 
-        // Set 3. Liga Absteiger from proposal
-        if (prop.markedAbstieg3Liga.length > 0) {
+        // Bottom-league absteiger that drop into the pool
+        if (prop.markedAbstiegPool.length > 0) {
           setAbsteigerClubs(
-            prop.markedAbstieg3Liga.map((id) => cMap.get(id)).filter(Boolean) as Club[]
+            prop.markedAbstiegPool.map((id) => cMap.get(id)).filter(Boolean) as Club[]
           );
         } else {
           setAbsteigerClubs([]);
@@ -161,14 +168,14 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
         setLoadingAbstieg(false);
       }
     })();
-  }, [open, source, copyFromId]);
+  }, [open, source, copyFromId, system]);
 
   const toggleAufsteiger = (clubId: string) => {
     setSelectedAufsteiger((prev) => {
       const next = new Set(prev);
       if (next.has(clubId)) {
         next.delete(clubId);
-      } else if (next.size < ABSTIEG_COUNT) {
+      } else if (next.size < poolExchangeCount) {
         next.add(clubId);
       }
       return next;
@@ -205,7 +212,7 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
         }
 
         const hasMovements = movements.length > 0;
-        const has3LChanges = absteigerClubs.length > 0 && selectedAufsteiger.size === ABSTIEG_COUNT;
+        const has3LChanges = absteigerClubs.length > 0 && selectedAufsteiger.size === poolExchangeCount;
 
         if (hasMovements || has3LChanges) {
           relegationChanges = {
@@ -250,11 +257,11 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
     onRefresh();
   };
 
-  // Valid state: either no Absteiger (no changes), or exactly ABSTIEG_COUNT Aufsteiger selected
+  // Valid state: either no Absteiger (no changes), or exactly poolExchangeCount Aufsteiger selected
   const aufsteigValid =
     absteigerClubs.length === 0 ||
     selectedAufsteiger.size === 0 ||
-    selectedAufsteiger.size === ABSTIEG_COUNT;
+    selectedAufsteiger.size === poolExchangeCount;
 
   // All playoffs must have a winner selected (if any exist)
   const playoffsValid =
@@ -343,186 +350,115 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
                 <div className="space-y-3 rounded-lg border border-border p-3">
                   <Label className="text-sm font-semibold">Auf- / Abstieg</Label>
 
-                  {/* 1. BL / 2. BL direct moves */}
-                  {(proposal.directRelegations.some((r) => r.from === "1-bundesliga") ||
-                    proposal.directPromotions.some((p) => p.to === "1-bundesliga")) && (
-                    <div className="space-y-1.5">
-                      <p className="text-xs text-muted-foreground font-semibold">1. BL / 2. BL</p>
-                      <div className="space-y-1">
-                        {proposal.directRelegations
-                          .filter((r) => r.from === "1-bundesliga")
-                          .map((r) => {
-                            const club = clubMap.get(r.clubId);
-                            if (!club) return null;
-                            return (
-                              <div key={r.clubId} className="flex items-center gap-2 rounded border border-red-500/30 bg-red-500/10 px-2.5 py-1.5">
-                                <span className="text-xs">↓</span>
-                                <ClubLogo logoUrl={club.logoUrl} name={club.name} shortName={club.shortName} primaryColor={club.primaryColor} size="sm" />
-                                <span className="text-xs font-medium">{club.name}</span>
-                                <span className="text-xs text-muted-foreground ml-auto">→ 2. BL</span>
-                              </div>
-                            );
-                          })}
-                        {proposal.directPromotions
-                          .filter((p) => p.to === "1-bundesliga")
-                          .map((p) => {
-                            const club = clubMap.get(p.clubId);
-                            if (!club) return null;
-                            return (
-                              <div key={p.clubId} className="flex items-center gap-2 rounded border border-green-500/30 bg-green-500/10 px-2.5 py-1.5">
-                                <span className="text-xs">↑</span>
-                                <ClubLogo logoUrl={club.logoUrl} name={club.name} shortName={club.shortName} primaryColor={club.primaryColor} size="sm" />
-                                <span className="text-xs font-medium">{club.name}</span>
-                                <span className="text-xs text-muted-foreground ml-auto">→ 1. BL</span>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  )}
+                  {/* Direct moves + playoffs between every adjacent league pair */}
+                  {system.leagues.map((upper, idx) => {
+                    const lower = system.leagues[idx + 1];
+                    if (!lower) return null;
+                    const upperShort = leagueShortName(upper.slug);
+                    const lowerShort = leagueShortName(lower.slug);
+                    const directRelegs = proposal.directRelegations.filter((r) => r.from === upper.slug);
+                    const directProms = proposal.directPromotions.filter((p) => p.to === upper.slug);
+                    const directMovesExist = directRelegs.length > 0 || directProms.length > 0;
+                    const playoffIdx = proposal.relegationMatches.findIndex(
+                      (m) => m.higher.league === upper.slug,
+                    );
+                    const playoff = playoffIdx >= 0 ? proposal.relegationMatches[playoffIdx] : null;
+                    if (!directMovesExist && !playoff) return null;
 
-                  {/* Relegation 1. BL / 2. BL playoff */}
-                  {proposal.relegationMatches.length > 0 && proposal.relegationMatches[0] && proposal.relegationMatches[0].higher.league === "1-bundesliga" && (() => {
-                    const match = proposal.relegationMatches[0];
-                    const higherClub = clubMap.get(match.higher.clubId);
-                    const lowerClub = clubMap.get(match.lower.clubId);
-                    if (!higherClub || !lowerClub) return null;
-                    const selected = playoffWinners.get(0);
                     return (
-                      <div className="space-y-1.5">
-                        <p className="text-xs text-muted-foreground font-semibold">Relegation 1. BL / 2. BL</p>
-                        <p className="text-xs text-muted-foreground">
-                          Platz {match.higher.position} (1. BL) vs Platz {match.lower.position} (2. BL) — Wer spielt nächste Saison 1. BL?
-                        </p>
-                        <div className="space-y-1">
-                          <button
-                            onClick={() => setPlayoffWinners((prev) => new Map(prev).set(0, "higher"))}
-                            className={`flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left transition-colors ${
-                              selected === "higher" ? "border border-blue-500/30 bg-blue-500/10" : "hover:bg-secondary/50"
-                            }`}
-                          >
-                            <div className={`h-4 w-4 shrink-0 rounded-full border ${selected === "higher" ? "border-blue-500 bg-blue-500" : "border-border"} flex items-center justify-center`}>
-                              {selected === "higher" && <span className="text-[8px] text-white font-bold">●</span>}
+                      <div key={`pair-${upper.slug}`} className="space-y-3">
+                        {directMovesExist && (
+                          <div className="space-y-1.5">
+                            <p className="text-xs text-muted-foreground font-semibold">{upperShort} / {lowerShort}</p>
+                            <div className="space-y-1">
+                              {directRelegs.map((r) => {
+                                const club = clubMap.get(r.clubId);
+                                if (!club) return null;
+                                return (
+                                  <div key={r.clubId} className="flex items-center gap-2 rounded border border-red-500/30 bg-red-500/10 px-2.5 py-1.5">
+                                    <span className="text-xs">↓</span>
+                                    <ClubLogo logoUrl={club.logoUrl} name={club.name} shortName={club.shortName} primaryColor={club.primaryColor} size="sm" />
+                                    <span className="text-xs font-medium">{club.name}</span>
+                                    <span className="text-xs text-muted-foreground ml-auto">→ {lowerShort}</span>
+                                  </div>
+                                );
+                              })}
+                              {directProms.map((p) => {
+                                const club = clubMap.get(p.clubId);
+                                if (!club) return null;
+                                return (
+                                  <div key={p.clubId} className="flex items-center gap-2 rounded border border-green-500/30 bg-green-500/10 px-2.5 py-1.5">
+                                    <span className="text-xs">↑</span>
+                                    <ClubLogo logoUrl={club.logoUrl} name={club.name} shortName={club.shortName} primaryColor={club.primaryColor} size="sm" />
+                                    <span className="text-xs font-medium">{club.name}</span>
+                                    <span className="text-xs text-muted-foreground ml-auto">→ {upperShort}</span>
+                                  </div>
+                                );
+                              })}
                             </div>
-                            <ClubLogo logoUrl={higherClub.logoUrl} name={higherClub.name} shortName={higherClub.shortName} primaryColor={higherClub.primaryColor} size="sm" />
-                            <span className="text-xs font-medium">{higherClub.name}</span>
-                            <span className="text-xs text-muted-foreground ml-auto">bleibt 1. BL</span>
-                          </button>
-                          <button
-                            onClick={() => setPlayoffWinners((prev) => new Map(prev).set(0, "lower"))}
-                            className={`flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left transition-colors ${
-                              selected === "lower" ? "border border-blue-500/30 bg-blue-500/10" : "hover:bg-secondary/50"
-                            }`}
-                          >
-                            <div className={`h-4 w-4 shrink-0 rounded-full border ${selected === "lower" ? "border-blue-500 bg-blue-500" : "border-border"} flex items-center justify-center`}>
-                              {selected === "lower" && <span className="text-[8px] text-white font-bold">●</span>}
+                          </div>
+                        )}
+
+                        {playoff && (() => {
+                          const higherClub = clubMap.get(playoff.higher.clubId);
+                          const lowerClub = clubMap.get(playoff.lower.clubId);
+                          if (!higherClub || !lowerClub) return null;
+                          const selected = playoffWinners.get(playoffIdx);
+                          return (
+                            <div className="space-y-1.5">
+                              <p className="text-xs text-muted-foreground font-semibold">Relegation {upperShort} / {lowerShort}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Platz {playoff.higher.position} ({upperShort}) vs Platz {playoff.lower.position} ({lowerShort}) — Wer spielt nächste Saison {upperShort}?
+                              </p>
+                              <div className="space-y-1">
+                                <button
+                                  onClick={() => setPlayoffWinners((prev) => new Map(prev).set(playoffIdx, "higher"))}
+                                  className={`flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left transition-colors ${
+                                    selected === "higher" ? "border border-blue-500/30 bg-blue-500/10" : "hover:bg-secondary/50"
+                                  }`}
+                                >
+                                  <div className={`h-4 w-4 shrink-0 rounded-full border ${selected === "higher" ? "border-blue-500 bg-blue-500" : "border-border"} flex items-center justify-center`}>
+                                    {selected === "higher" && <span className="text-[8px] text-white font-bold">●</span>}
+                                  </div>
+                                  <ClubLogo logoUrl={higherClub.logoUrl} name={higherClub.name} shortName={higherClub.shortName} primaryColor={higherClub.primaryColor} size="sm" />
+                                  <span className="text-xs font-medium">{higherClub.name}</span>
+                                  <span className="text-xs text-muted-foreground ml-auto">bleibt {upperShort}</span>
+                                </button>
+                                <button
+                                  onClick={() => setPlayoffWinners((prev) => new Map(prev).set(playoffIdx, "lower"))}
+                                  className={`flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left transition-colors ${
+                                    selected === "lower" ? "border border-blue-500/30 bg-blue-500/10" : "hover:bg-secondary/50"
+                                  }`}
+                                >
+                                  <div className={`h-4 w-4 shrink-0 rounded-full border ${selected === "lower" ? "border-blue-500 bg-blue-500" : "border-border"} flex items-center justify-center`}>
+                                    {selected === "lower" && <span className="text-[8px] text-white font-bold">●</span>}
+                                  </div>
+                                  <ClubLogo logoUrl={lowerClub.logoUrl} name={lowerClub.name} shortName={lowerClub.shortName} primaryColor={lowerClub.primaryColor} size="sm" />
+                                  <span className="text-xs font-medium">{lowerClub.name}</span>
+                                  <span className="text-xs text-muted-foreground ml-auto">steigt auf in {upperShort}</span>
+                                </button>
+                              </div>
                             </div>
-                            <ClubLogo logoUrl={lowerClub.logoUrl} name={lowerClub.name} shortName={lowerClub.shortName} primaryColor={lowerClub.primaryColor} size="sm" />
-                            <span className="text-xs font-medium">{lowerClub.name}</span>
-                            <span className="text-xs text-muted-foreground ml-auto">steigt auf in 1. BL</span>
-                          </button>
-                        </div>
+                          );
+                        })()}
                       </div>
                     );
-                  })()}
+                  })}
 
-                  {/* 2. BL / 3. Liga direct moves */}
-                  {(proposal.directRelegations.some((r) => r.from === "2-bundesliga") ||
-                    proposal.directPromotions.some((p) => p.to === "2-bundesliga")) && (
-                    <div className="space-y-1.5">
-                      <p className="text-xs text-muted-foreground font-semibold">2. BL / 3. Liga</p>
-                      <div className="space-y-1">
-                        {proposal.directRelegations
-                          .filter((r) => r.from === "2-bundesliga")
-                          .map((r) => {
-                            const club = clubMap.get(r.clubId);
-                            if (!club) return null;
-                            return (
-                              <div key={r.clubId} className="flex items-center gap-2 rounded border border-red-500/30 bg-red-500/10 px-2.5 py-1.5">
-                                <span className="text-xs">↓</span>
-                                <ClubLogo logoUrl={club.logoUrl} name={club.name} shortName={club.shortName} primaryColor={club.primaryColor} size="sm" />
-                                <span className="text-xs font-medium">{club.name}</span>
-                                <span className="text-xs text-muted-foreground ml-auto">→ 3. Liga</span>
-                              </div>
-                            );
-                          })}
-                        {proposal.directPromotions
-                          .filter((p) => p.to === "2-bundesliga")
-                          .map((p) => {
-                            const club = clubMap.get(p.clubId);
-                            if (!club) return null;
-                            return (
-                              <div key={p.clubId} className="flex items-center gap-2 rounded border border-green-500/30 bg-green-500/10 px-2.5 py-1.5">
-                                <span className="text-xs">↑</span>
-                                <ClubLogo logoUrl={club.logoUrl} name={club.name} shortName={club.shortName} primaryColor={club.primaryColor} size="sm" />
-                                <span className="text-xs font-medium">{club.name}</span>
-                                <span className="text-xs text-muted-foreground ml-auto">→ 2. BL</span>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Relegation 2. BL / 3. Liga playoff */}
-                  {proposal.relegationMatches.length > 1 && proposal.relegationMatches[1] && proposal.relegationMatches[1].higher.league === "2-bundesliga" && (() => {
-                    const match = proposal.relegationMatches[1];
-                    const higherClub = clubMap.get(match.higher.clubId);
-                    const lowerClub = clubMap.get(match.lower.clubId);
-                    if (!higherClub || !lowerClub) return null;
-                    const selected = playoffWinners.get(1);
-                    return (
-                      <div className="space-y-1.5">
-                        <p className="text-xs text-muted-foreground font-semibold">Relegation 2. BL / 3. Liga</p>
-                        <p className="text-xs text-muted-foreground">
-                          Platz {match.higher.position} (2. BL) vs Platz {match.lower.position} (3. Liga) — Wer spielt nächste Saison 2. BL?
-                        </p>
-                        <div className="space-y-1">
-                          <button
-                            onClick={() => setPlayoffWinners((prev) => new Map(prev).set(1, "higher"))}
-                            className={`flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left transition-colors ${
-                              selected === "higher" ? "border border-blue-500/30 bg-blue-500/10" : "hover:bg-secondary/50"
-                            }`}
-                          >
-                            <div className={`h-4 w-4 shrink-0 rounded-full border ${selected === "higher" ? "border-blue-500 bg-blue-500" : "border-border"} flex items-center justify-center`}>
-                              {selected === "higher" && <span className="text-[8px] text-white font-bold">●</span>}
-                            </div>
-                            <ClubLogo logoUrl={higherClub.logoUrl} name={higherClub.name} shortName={higherClub.shortName} primaryColor={higherClub.primaryColor} size="sm" />
-                            <span className="text-xs font-medium">{higherClub.name}</span>
-                            <span className="text-xs text-muted-foreground ml-auto">bleibt 2. BL</span>
-                          </button>
-                          <button
-                            onClick={() => setPlayoffWinners((prev) => new Map(prev).set(1, "lower"))}
-                            className={`flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left transition-colors ${
-                              selected === "lower" ? "border border-blue-500/30 bg-blue-500/10" : "hover:bg-secondary/50"
-                            }`}
-                          >
-                            <div className={`h-4 w-4 shrink-0 rounded-full border ${selected === "lower" ? "border-blue-500 bg-blue-500" : "border-border"} flex items-center justify-center`}>
-                              {selected === "lower" && <span className="text-[8px] text-white font-bold">●</span>}
-                            </div>
-                            <ClubLogo logoUrl={lowerClub.logoUrl} name={lowerClub.name} shortName={lowerClub.shortName} primaryColor={lowerClub.primaryColor} size="sm" />
-                            <span className="text-xs font-medium">{lowerClub.name}</span>
-                            <span className="text-xs text-muted-foreground ml-auto">steigt auf in 2. BL</span>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* 3. Liga / Regionalliga Auf-/Abstieg */}
+                  {/* Bottom league ↔ Pool exchange */}
                   {absteigerClubs.length > 0 && (
                     <div className="space-y-1.5">
-                      <p className="text-xs text-muted-foreground font-semibold">3. Liga / Regionalliga</p>
+                      <p className="text-xs text-muted-foreground font-semibold">{bottomLeagueShort} / {poolTierLabel}</p>
 
                       {/* Absteiger */}
-                      <p className="text-xs text-muted-foreground">Absteiger (Platz {21 - ABSTIEG_COUNT}-20):</p>
+                      <p className="text-xs text-muted-foreground">Absteiger (letzte {poolExchangeCount} Plätze):</p>
                       <div className="space-y-1">
                         {absteigerClubs.map((club) => (
                           <div key={club.id} className="flex items-center gap-2 rounded border border-red-500/30 bg-red-500/10 px-2.5 py-1.5">
                             <span className="text-xs">↓</span>
                             <ClubLogo logoUrl={club.logoUrl} name={club.name} shortName={club.shortName} primaryColor={club.primaryColor} size="sm" />
                             <span className="text-xs font-medium">{club.name}</span>
-                            <span className="text-xs text-muted-foreground ml-auto">→ Regionalliga</span>
+                            <span className="text-xs text-muted-foreground ml-auto">→ {poolTierLabel}</span>
                           </div>
                         ))}
                       </div>
@@ -530,7 +466,7 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
                       {/* Aufsteiger Auswahl */}
                       <div className="flex items-center justify-between">
                         <p className="text-xs text-muted-foreground">
-                          Aufsteiger wählen ({selectedAufsteiger.size} von {ABSTIEG_COUNT}):
+                          Aufsteiger wählen ({selectedAufsteiger.size} von {poolExchangeCount}):
                         </p>
                         {selectedAufsteiger.size > 0 && (
                           <button
@@ -544,12 +480,12 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
                       {loadingAbstieg ? (
                         <p className="text-xs text-muted-foreground py-2">Laden...</p>
                       ) : poolClubs.length === 0 ? (
-                        <p className="text-xs text-muted-foreground py-2">Keine Regionalliga-Clubs verfügbar.</p>
+                        <p className="text-xs text-muted-foreground py-2">Keine {poolTierLabel}-Clubs verfügbar.</p>
                       ) : (
                         <div className="max-h-48 overflow-y-auto space-y-1 rounded border border-border p-1.5">
                           {poolClubs.map((club) => {
                             const selected = selectedAufsteiger.has(club.id);
-                            const disabled = !selected && selectedAufsteiger.size >= ABSTIEG_COUNT;
+                            const disabled = !selected && selectedAufsteiger.size >= poolExchangeCount;
                             return (
                               <button
                                 key={club.id}
@@ -575,9 +511,9 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
                           })}
                         </div>
                       )}
-                      {selectedAufsteiger.size > 0 && selectedAufsteiger.size < ABSTIEG_COUNT && (
+                      {selectedAufsteiger.size > 0 && selectedAufsteiger.size < poolExchangeCount && (
                         <p className="text-xs text-amber-400">
-                          Bitte genau {ABSTIEG_COUNT} Aufsteiger wählen oder keinen (keine Änderung).
+                          Bitte genau {poolExchangeCount} Aufsteiger wählen oder keinen (keine Änderung).
                         </p>
                       )}
                     </div>
@@ -593,7 +529,7 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
               )}
 
               <p className="text-xs text-muted-foreground">
-                Die neue Saison wird als aktuelle Saison gesetzt. {scheduleMode === "manual" ? "Leere Spieltage werden erstellt - Begegnungen müssen manuell eingetragen werden." : "Spielpläne werden automatisch generiert."} DFB-Pokal muss separat ausgelost werden.
+                Die neue Saison wird als aktuelle Saison gesetzt. {scheduleMode === "manual" ? "Leere Spieltage werden erstellt - Begegnungen müssen manuell eingetragen werden." : "Spielpläne werden automatisch generiert."} {COMPETITIONS.find((c) => c.id === system.cup.competitionId)?.name ?? "Pokal"} muss separat ausgelost werden.
               </p>
             </div>
 
