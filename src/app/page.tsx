@@ -426,6 +426,7 @@ export default function Home() {
       <HistoryView
         open={showHistorie}
         onOpenChange={setShowHistorie}
+        currentSeason={currentSeason}
       />
 
       <footer className="border-t border-border bg-header-bg py-4 text-xs text-muted-foreground">

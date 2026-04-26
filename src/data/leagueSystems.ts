@@ -112,6 +112,10 @@ export interface LeagueSystem {
   matchdayLabel: string;
   /** Heading shown above the trophy on the cup-winner screen ("Pokalsieger"). */
   cupWinnerLabel: string;
+  /** Short label for the top-league title ("Meister" / "Champion"). */
+  championLabel: string;
+  /** Short label for the cup, used in history tabs ("Pokal" / "FA Cup"). */
+  cupShortLabel: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -124,6 +128,8 @@ const GERMAN_SYSTEM: LeagueSystem = {
   flag: "🇩🇪",
   matchdayLabel: "Spieltag",
   cupWinnerLabel: "Pokalsieger",
+  championLabel: "Meister",
+  cupShortLabel: "Pokal",
   leagues: [
     {
       competitionId: "comp_1bl",
@@ -230,6 +236,8 @@ const ENGLISH_SYSTEM: LeagueSystem = {
   flag: "🇬🇧",
   matchdayLabel: "Matchday",
   cupWinnerLabel: "Cup Winner",
+  championLabel: "Champion",
+  cupShortLabel: "FA Cup",
   leagues: [
     {
       competitionId: "comp_pl",
