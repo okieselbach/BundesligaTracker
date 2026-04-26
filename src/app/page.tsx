@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { db, type Season, type Competition, type SeasonCompetition, type Club, type Matchday, type Match, type CupRound, type Id } from "@/lib/db";
 import { seedQuickStart, hasData } from "@/lib/seed";
 import { migrateClubsIfNeeded } from "@/lib/migrate";
@@ -21,7 +21,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import * as sync from "@/lib/sync";
 import { exportAllData } from "@/lib/backup";
-import { getSystemByCompetitionSlug } from "@/lib/leagueSystem";
+import { getSystemByCompetitionSlug, getSystem } from "@/lib/leagueSystem";
+import { DEFAULT_SYSTEM_ID } from "@/data/leagueSystems";
 import { toast } from "sonner";
 
 type SubTab = "spieltage" | "tabelle" | "clubs" | "ewige-tabelle";
@@ -112,22 +113,40 @@ export default function Home() {
         setSeasons(allSeasons);
         const current = allSeasons.find((s) => s.isCurrent) ?? allSeasons[0];
         setCurrentSeason(current);
+
+        // Load *all* competitions; the visible ones get derived per-season below.
         const allComps = await db.competitions.orderBy("sortOrder").toArray();
         setCompetitions(allComps);
-        // Preserve active competition on refresh, only default to first on initial load
-        setActiveCompetition((prev) => {
-          if (prev) {
-            const stillExists = allComps.find((c) => c.id === prev.id);
-            if (stillExists) return stillExists;
-          }
-          return allComps[0] ?? null;
-        });
         const allClubs = await db.clubs.toArray();
         setAllDbClubs(allClubs);
       }
       setLoading(false);
     })();
   }, [refreshKey]);
+
+  // Visible competitions = only those belonging to the current season's system.
+  const visibleCompetitions = useMemo(() => {
+    if (!currentSeason) return competitions;
+    const activeSystem = getSystem(currentSeason.systemId ?? DEFAULT_SYSTEM_ID);
+    const systemCompIds = new Set([
+      ...activeSystem.leagues.map((l) => l.competitionId),
+      activeSystem.cup.competitionId,
+    ]);
+    return competitions.filter((c) => systemCompIds.has(c.id));
+  }, [competitions, currentSeason]);
+
+  // Keep activeCompetition in sync when the visible set changes (e.g. season
+  // switched to a different country). Falls back to the first visible league.
+  useEffect(() => {
+    if (visibleCompetitions.length === 0) {
+      setActiveCompetition(null);
+      return;
+    }
+    setActiveCompetition((prev) => {
+      if (prev && visibleCompetitions.find((c) => c.id === prev.id)) return prev;
+      return visibleCompetitions[0];
+    });
+  }, [visibleCompetitions]);
 
   // Load season-competition data when season/competition changes
   useEffect(() => {
@@ -179,10 +198,10 @@ export default function Home() {
     })();
   }, [currentSeason, activeCompetition, refreshKey]);
 
-  const handleQuickStart = async (manual: boolean) => {
+  const handleQuickStart = async (manual: boolean, systemId: string = DEFAULT_SYSTEM_ID) => {
     setLoading(true);
     setShowSettings(false);
-    await seedQuickStart("2025/26", manual);
+    await seedQuickStart("2025/26", manual, systemId);
     setRefreshKey((k) => k + 1);
   };
 
@@ -285,7 +304,7 @@ export default function Home() {
       </div>
 
       <CompetitionTabs
-        competitions={competitions}
+        competitions={visibleCompetitions}
         activeCompetition={activeCompetition}
         onSelect={(comp) => { setActiveCompetition(comp); setShowAllClubs(false); }}
         allClubsActive={showAllClubs}
@@ -296,7 +315,7 @@ export default function Home() {
         {showAllClubs ? (
           <AllClubsView
             clubs={allDbClubs}
-            competitions={competitions}
+            competitions={visibleCompetitions}
             seasonCompetitions={seasonCompetitions}
             onRefresh={refresh}
           />
@@ -306,6 +325,7 @@ export default function Home() {
             cupRounds={cupRounds}
             matches={matches}
             clubs={clubs}
+            allClubs={allDbClubs}
             onRefresh={refresh}
             leagueClubIds={(() => {
               // Build slug → ordered clubIds map for every league in this cup's

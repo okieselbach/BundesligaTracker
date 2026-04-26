@@ -29,7 +29,7 @@ import { computeStandings } from "@/lib/standings";
 import { computeRelegationProposal, type RelegationProposal } from "@/lib/relegation";
 import { ClubLogo } from "./ClubLogo";
 import { COMPETITIONS } from "@/data/competitions";
-import { DEFAULT_SYSTEM_ID, getSystem, type LeagueSystem } from "@/data/leagueSystems";
+import { DEFAULT_SYSTEM_ID, LEAGUE_SYSTEMS, getSystem, type LeagueSystem } from "@/data/leagueSystems";
 
 interface SeasonManagerProps {
   seasons: Season[];
@@ -45,12 +45,26 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
   const [scheduleMode, setScheduleMode] = useState<"random" | "manual">("random");
   const [creating, setCreating] = useState(false);
 
-  // For Phase 1 we always use the default (German) system. In Phase 2 the
-  // active system will be derived from the season being copied / created.
-  const system: LeagueSystem = getSystem(DEFAULT_SYSTEM_ID);
+  // System selection for "default" source. Defaults to the current season's
+  // system, falling back to "de". When the source is "copy", the system is
+  // implicitly the source season's system.
+  const [defaultSystemId, setDefaultSystemId] = useState<string>(
+    currentSeason?.systemId ?? DEFAULT_SYSTEM_ID,
+  );
+
+  // Resolve the active system from the chosen source.
+  const activeSystemId =
+    source === "copy"
+      ? seasons.find((s) => s.id === copyFromId)?.systemId ?? DEFAULT_SYSTEM_ID
+      : defaultSystemId;
+  const system: LeagueSystem = getSystem(activeSystemId);
   const poolExchangeCount = system.poolExchangeCount;
-  const poolTierLabel = system.poolTiers[0]?.name ?? "Pool";
   const bottomLeague = system.leagues[system.leagues.length - 1];
+  // Aggregate label for the pool. For single-tier systems ("Regionalliga")
+  // it's just that tier's name; for multi-tier (England) we say "Pool".
+  const poolTierLabel = system.poolTiers.length === 1
+    ? system.poolTiers[0].name
+    : "Pool";
 
   /** Short label for a league slug ("1. BL", "Premier League", ...). */
   const leagueShortName = (slug: string): string => {
@@ -168,7 +182,7 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
         setLoadingAbstieg(false);
       }
     })();
-  }, [open, source, copyFromId, system]);
+  }, [open, source, copyFromId, activeSystemId]);
 
   const toggleAufsteiger = (clubId: string) => {
     setSelectedAufsteiger((prev) => {
@@ -229,6 +243,7 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
         copyFromSeasonId: source === "copy" ? copyFromId : undefined,
         manual: scheduleMode === "manual",
         relegationChanges,
+        systemId: activeSystemId,
       });
       setOpen(false);
       onRefresh();
@@ -322,9 +337,30 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {seasons.map((s) => (
+                      {seasons.map((s) => {
+                        const flag = LEAGUE_SYSTEMS.find((sy) => sy.id === (s.systemId ?? DEFAULT_SYSTEM_ID))?.flag ?? "";
+                        return (
+                          <SelectItem key={s.id} value={s.id}>
+                            {flag} {s.name}{s.isCurrent ? " (aktuell)" : ""}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {source === "default" && (
+                <div className="space-y-2">
+                  <Label>Liga-System</Label>
+                  <Select value={defaultSystemId} onValueChange={setDefaultSystemId}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LEAGUE_SYSTEMS.map((s) => (
                         <SelectItem key={s.id} value={s.id}>
-                          {s.name}{s.isCurrent ? " (aktuell)" : ""}
+                          {s.flag} {s.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -482,33 +518,69 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
                       ) : poolClubs.length === 0 ? (
                         <p className="text-xs text-muted-foreground py-2">Keine {poolTierLabel}-Clubs verfügbar.</p>
                       ) : (
-                        <div className="max-h-48 overflow-y-auto space-y-1 rounded border border-border p-1.5">
-                          {poolClubs.map((club) => {
-                            const selected = selectedAufsteiger.has(club.id);
-                            const disabled = !selected && selectedAufsteiger.size >= poolExchangeCount;
-                            return (
-                              <button
-                                key={club.id}
-                                onClick={() => toggleAufsteiger(club.id)}
-                                disabled={disabled}
-                                className={`flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left transition-colors ${
-                                  selected
-                                    ? "border border-green-500/30 bg-green-500/10"
-                                    : disabled
-                                    ? "opacity-40"
-                                    : "hover:bg-secondary/50"
-                                }`}
-                              >
-                                <div className={`h-4 w-4 shrink-0 rounded border ${
-                                  selected ? "border-green-500 bg-green-500" : "border-border"
-                                } flex items-center justify-center`}>
-                                  {selected && <span className="text-[10px] text-white font-bold">&#10003;</span>}
+                        <div className="max-h-72 overflow-y-auto space-y-3 rounded border border-border p-1.5">
+                          {(() => {
+                            // Group pool clubs by tier so the user sees them
+                            // sorted by realistic promotion candidacy
+                            // (Championship first, Non-League last for English).
+                            const groups: { tierId?: string; tierName: string; clubs: Club[] }[] = [];
+                            for (const tier of system.poolTiers) {
+                              const tierClubs = poolClubs.filter((c) => c.tier === tier.id);
+                              if (tierClubs.length > 0) {
+                                groups.push({ tierId: tier.id, tierName: tier.name, clubs: tierClubs });
+                              }
+                            }
+                            // Catch-all bucket for clubs without a tier (legacy data).
+                            const untagged = poolClubs.filter((c) => !c.tier);
+                            if (untagged.length > 0) {
+                              groups.push({ tierName: poolTierLabel, clubs: untagged });
+                            }
+
+                            const renderClubButton = (club: Club) => {
+                              const selected = selectedAufsteiger.has(club.id);
+                              const disabled = !selected && selectedAufsteiger.size >= poolExchangeCount;
+                              return (
+                                <button
+                                  key={club.id}
+                                  onClick={() => toggleAufsteiger(club.id)}
+                                  disabled={disabled}
+                                  className={`flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left transition-colors ${
+                                    selected
+                                      ? "border border-green-500/30 bg-green-500/10"
+                                      : disabled
+                                      ? "opacity-40"
+                                      : "hover:bg-secondary/50"
+                                  }`}
+                                >
+                                  <div className={`h-4 w-4 shrink-0 rounded border ${
+                                    selected ? "border-green-500 bg-green-500" : "border-border"
+                                  } flex items-center justify-center`}>
+                                    {selected && <span className="text-[10px] text-white font-bold">&#10003;</span>}
+                                  </div>
+                                  <ClubLogo logoUrl={club.logoUrl} name={club.name} shortName={club.shortName} primaryColor={club.primaryColor} size="sm" />
+                                  <span className="text-xs font-medium truncate">{club.name}</span>
+                                </button>
+                              );
+                            };
+
+                            // For single-tier systems (German), skip the group
+                            // headers — the flat list is what users expect.
+                            if (groups.length <= 1) {
+                              return (
+                                <div className="space-y-1">
+                                  {groups[0]?.clubs.map(renderClubButton)}
                                 </div>
-                                <ClubLogo logoUrl={club.logoUrl} name={club.name} shortName={club.shortName} primaryColor={club.primaryColor} size="sm" />
-                                <span className="text-xs font-medium truncate">{club.name}</span>
-                              </button>
-                            );
-                          })}
+                              );
+                            }
+                            return groups.map((group) => (
+                              <div key={group.tierId ?? "untagged"} className="space-y-1">
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                  {group.tierName} ({group.clubs.length})
+                                </p>
+                                {group.clubs.map(renderClubButton)}
+                              </div>
+                            ));
+                          })()}
                         </div>
                       )}
                       {selectedAufsteiger.size > 0 && selectedAufsteiger.size < poolExchangeCount && (

@@ -90,6 +90,7 @@ export async function seedQuickStart(
     name: seasonName,
     isCurrent: true,
     createdAt: Date.now(),
+    systemId: system.id,
   });
 
   const leagueClubIdsBySlug: Record<string, string[]> = {};
@@ -208,6 +209,7 @@ export async function createSeason(opts: {
     name,
     isCurrent: makeCurrent,
     createdAt: Date.now(),
+    systemId: system.id,
   });
 
   // Determine club assignments per league

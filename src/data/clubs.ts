@@ -1,8 +1,17 @@
 import type { Club } from "@/lib/db";
+import {
+  CLUBS_PREMIER_LEAGUE,
+  CLUBS_CHAMPIONSHIP,
+  CLUBS_LEAGUE_ONE,
+  CLUBS_LEAGUE_TWO,
+  CLUBS_NON_LEAGUE,
+  CLUBS_EN_ALL,
+} from "./en/clubs";
 
 // Increment this when club data changes (logos, names, new clubs, colors).
 // The app auto-migrates the son's IndexedDB on next startup.
-export const CLUBS_CONFIG_VERSION = 4;
+// 5 = Phase 2 introduces English clubs.
+export const CLUBS_CONFIG_VERSION = 5;
 
 const SYSTEM_DE = "de";
 const TIER_REGIONALLIGA = "regionalliga";
@@ -119,7 +128,13 @@ export const CLUBS_REGIONALLIGA: Club[] = tag(CLUBS_REGIONALLIGA_RAW, SYSTEM_DE,
 // Backwards compatibility alias
 export const CLUBS_POKAL_EXTRA = CLUBS_REGIONALLIGA;
 
-export const ALL_CLUBS: Club[] = [...CLUBS_1BL, ...CLUBS_2BL, ...CLUBS_3BL, ...CLUBS_REGIONALLIGA];
+export const ALL_CLUBS: Club[] = [
+  ...CLUBS_1BL,
+  ...CLUBS_2BL,
+  ...CLUBS_3BL,
+  ...CLUBS_REGIONALLIGA,
+  ...CLUBS_EN_ALL,
+];
 
 /**
  * Initial club rosters keyed by league competition slug. Used by `seed.ts`
@@ -130,11 +145,16 @@ export const INITIAL_CLUBS_BY_LEAGUE_SLUG: Record<string, Club[]> = {
   "1-bundesliga": CLUBS_1BL,
   "2-bundesliga": CLUBS_2BL,
   "3-liga": CLUBS_3BL,
+  "premier-league": CLUBS_PREMIER_LEAGUE,
 };
 
 /** Initial pool clubs keyed by their tier id ("regionalliga", "championship", ...). */
 export const INITIAL_POOL_CLUBS_BY_TIER: Record<string, Club[]> = {
   "regionalliga": CLUBS_REGIONALLIGA,
+  "championship": CLUBS_CHAMPIONSHIP,
+  "league-one": CLUBS_LEAGUE_ONE,
+  "league-two": CLUBS_LEAGUE_TWO,
+  "non-league": CLUBS_NON_LEAGUE,
 };
 
 export function getClubById(id: string): Club | undefined {

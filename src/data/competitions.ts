@@ -33,4 +33,21 @@ export const COMPETITIONS: Competition[] = [
     slug: "dfb-pokal",
     sortOrder: 4,
   },
+  // 🇬🇧 England
+  {
+    id: "comp_pl",
+    name: "Premier League",
+    shortName: "PL",
+    type: "league",
+    slug: "premier-league",
+    sortOrder: 10,
+  },
+  {
+    id: "comp_facup",
+    name: "FA Cup",
+    shortName: "FA Cup",
+    type: "cup",
+    slug: "fa-cup",
+    sortOrder: 11,
+  },
 ];

@@ -7,6 +7,11 @@ import { History, Settings, Trophy, Sun, Moon, UserCircle, LogOut } from "lucide
 import { useTheme } from "next-themes";
 import { SyncStatus } from "@/components/SyncStatus";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { LEAGUE_SYSTEMS, DEFAULT_SYSTEM_ID } from "@/data/leagueSystems";
+
+function flagFor(systemId: string | undefined): string {
+  return LEAGUE_SYSTEMS.find((s) => s.id === (systemId ?? DEFAULT_SYSTEM_ID))?.flag ?? "🇩🇪";
+}
 
 interface HeaderProps {
   seasons: Season[];
@@ -49,13 +54,21 @@ export function Header({ seasons, currentSeason, onSeasonChange, onSettingsClick
 
           {seasons.length > 0 && currentSeason && (
             <Select value={currentSeason.id} onValueChange={onSeasonChange}>
-              <SelectTrigger className="w-[140px] bg-secondary">
-                <SelectValue />
+              <SelectTrigger className="w-[160px] bg-secondary">
+                <SelectValue>
+                  <span className="flex items-center gap-1.5">
+                    <span>{flagFor(currentSeason.systemId)}</span>
+                    <span>{currentSeason.name}</span>
+                  </span>
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {seasons.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
-                    {s.name}
+                    <span className="flex items-center gap-1.5">
+                      <span>{flagFor(s.systemId)}</span>
+                      <span>{s.name}</span>
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>

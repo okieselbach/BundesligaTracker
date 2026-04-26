@@ -215,10 +215,73 @@ const GERMAN_SYSTEM: LeagueSystem = {
 };
 
 // ---------------------------------------------------------------------------
+// 🇬🇧 England
+// ---------------------------------------------------------------------------
+
+const ENGLISH_SYSTEM: LeagueSystem = {
+  id: "en",
+  name: "England",
+  flag: "🇬🇧",
+  leagues: [
+    {
+      competitionId: "comp_pl",
+      slug: "premier-league",
+      zones: [
+        { positions: { kind: "exact", positions: [1, 2, 3, 4] }, type: "cl" },
+        { positions: { kind: "exact", positions: [5] }, type: "el" },
+        { positions: { kind: "exact", positions: [6] }, type: "ecl" },
+        { positions: { kind: "exact", positions: [18, 19, 20] }, type: "abstieg" },
+      ],
+      directRelegationPositions: [], // Premier League drops straight into the pool
+      directPromotionPositions: [],
+      // toPoolPositions handled implicitly: bottom league exchange uses
+      // directRelegationPositions when no toPoolPositions is set, but our
+      // pool exchange logic treats the bottom league specially.
+      toPoolPositions: { kind: "exact", positions: [18, 19, 20] },
+    },
+  ],
+  poolTiers: [
+    { id: "championship", name: "Championship", shortName: "Champ" },
+    { id: "league-one", name: "League One", shortName: "L1" },
+    { id: "league-two", name: "League Two", shortName: "L2" },
+    { id: "non-league", name: "Non-League", shortName: "NL" },
+  ],
+  poolExchangeCount: 3,
+  cup: {
+    competitionId: "comp_facup",
+    slug: "fa-cup",
+    // R1 = 80 teams (48 EFL + 32 Non-League stand-ins). PL + Championship
+    // join at R3 via lateEntrants.
+    totalTeams: 80,
+    initialEntrants: [
+      { type: "pool", tierId: "league-one", count: 24 },
+      { type: "pool", tierId: "league-two", count: 24 },
+      { type: "pool", tierId: "non-league", count: 32 },
+    ],
+    lateEntrants: {
+      3: [
+        { type: "league", slug: "premier-league" },
+        { type: "pool", tierId: "championship", count: 24 },
+      ],
+    },
+    rounds: [
+      { number: 1, name: "Round 1", draw: { type: "free" } },
+      { number: 2, name: "Round 2", draw: { type: "free" } },
+      { number: 3, name: "Round 3", draw: { type: "free" } },
+      { number: 4, name: "Round 4", draw: { type: "free" } },
+      { number: 5, name: "Round 5", draw: { type: "free" } },
+      { number: 6, name: "Quarter-Final", draw: { type: "free" } },
+      { number: 7, name: "Semi-Final", draw: { type: "free" } },
+      { number: 8, name: "Final", draw: { type: "free" } },
+    ],
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Registry
 // ---------------------------------------------------------------------------
 
-export const LEAGUE_SYSTEMS: LeagueSystem[] = [GERMAN_SYSTEM];
+export const LEAGUE_SYSTEMS: LeagueSystem[] = [GERMAN_SYSTEM, ENGLISH_SYSTEM];
 
 /** Default system used when no explicit choice has been made. */
 export const DEFAULT_SYSTEM_ID = "de";

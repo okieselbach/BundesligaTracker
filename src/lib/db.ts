@@ -27,6 +27,8 @@ export interface Season {
   name: string;
   isCurrent: boolean;
   createdAt: number;
+  /** Which league system this season belongs to ("de", "en", ...). */
+  systemId?: string;
 }
 
 export interface Competition {

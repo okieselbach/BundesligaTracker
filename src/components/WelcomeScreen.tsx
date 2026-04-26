@@ -9,9 +9,10 @@ import { importAllData, type BackupData } from "@/lib/backup";
 import { Trophy, Upload, Shuffle, Pencil, Cloud, LogIn, UserPlus, UserCircle } from "lucide-react";
 import * as sync from "@/lib/sync";
 import { toast } from "sonner";
+import { LEAGUE_SYSTEMS, DEFAULT_SYSTEM_ID } from "@/data/leagueSystems";
 
 interface WelcomeScreenProps {
-  onQuickStart: (manual: boolean) => void;
+  onQuickStart: (manual: boolean, systemId: string) => void;
   onImportDone: () => void;
   onSyncStateChange?: () => void;
 }
@@ -26,6 +27,7 @@ export function WelcomeScreen({ onQuickStart, onImportDone, onSyncStateChange }:
     typeof window !== "undefined" ? sync.getUsername() : null
   );
   const [registrationLimitReached, setRegistrationLimitReached] = useState(false);
+  const [systemId, setSystemId] = useState<string>(DEFAULT_SYSTEM_ID);
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -99,20 +101,39 @@ export function WelcomeScreen({ onQuickStart, onImportDone, onSyncStateChange }:
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Quick Start - Saison 2025/26
             </p>
-            <Button onClick={() => onQuickStart(false)} className="w-full gap-2" size="lg">
+
+            {/* League system picker */}
+            <div className="grid grid-cols-2 gap-2">
+              {LEAGUE_SYSTEMS.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => setSystemId(s.id)}
+                  className={`flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${
+                    systemId === s.id
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border text-muted-foreground hover:bg-secondary/50"
+                  }`}
+                >
+                  <span className="text-lg">{s.flag}</span>
+                  <span className="font-medium">{s.name}</span>
+                </button>
+              ))}
+            </div>
+
+            <Button onClick={() => onQuickStart(false, systemId)} className="w-full gap-2" size="lg">
               <Shuffle className="h-5 w-5" />
               Zufalls-Spielplan
             </Button>
             <p className="text-xs text-muted-foreground">
-              64 Clubs mit automatisch generiertem Spielplan (Begegnungen zufällig).
+              Automatisch generierter Spielplan mit zufälligen Begegnungen.
             </p>
 
-            <Button onClick={() => onQuickStart(true)} variant="outline" className="w-full gap-2" size="lg">
+            <Button onClick={() => onQuickStart(true, systemId)} variant="outline" className="w-full gap-2" size="lg">
               <Pencil className="h-5 w-5" />
               Manueller Spielplan
             </Button>
             <p className="text-xs text-muted-foreground">
-              64 Clubs mit leeren Spieltagen - Begegnungen selbst eintragen (z.B. echte Bundesliga nachspielen).
+              Leere Spieltage - Begegnungen selbst eintragen (echte Saison nachspielen).
             </p>
 
             <div className="relative py-3">

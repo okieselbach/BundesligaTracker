@@ -9,6 +9,7 @@ import {
   allRoundMatchesDecided,
   buildPotsForRound,
   getRoundName,
+  getLateEntrants,
 } from "@/lib/cup";
 import { MatchCard } from "./MatchCard";
 import { MatchPairingEditor, type Pairing } from "./MatchPairingEditor";
@@ -26,6 +27,8 @@ interface CupViewProps {
   cupRounds: CupRound[];
   matches: Match[];
   clubs: Club[];
+  /** All clubs in the database, used to resolve late-entrant logos in the FA Cup. */
+  allClubs?: Club[];
   onRefresh: () => void;
   /** Map of league slug → ordered club ids in that league (for cup pot rules). */
   leagueClubIds?: Record<string, Id[]>;
@@ -33,12 +36,18 @@ interface CupViewProps {
   poolByTier?: Record<string, Id[]>;
 }
 
-export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefresh, leagueClubIds, poolByTier }: CupViewProps) {
+export function CupView({ seasonCompetition, cupRounds, matches, clubs, allClubs, onRefresh, leagueClubIds, poolByTier }: CupViewProps) {
   const [activeRound, setActiveRound] = useState<number>(0);
   const [manualFirstRound, setManualFirstRound] = useState(false);
   const [manualNextRound, setManualNextRound] = useState(false);
   const [editingCurrentRound, setEditingCurrentRound] = useState(false);
-  const clubMap = new Map(clubs.map((c) => [c.id, c]));
+  // Build a club lookup. We seed it with `allClubs` first (so late entrants
+  // like Premier League + Championship resolve before they're committed to
+  // the season-competition's clubIds), then override with cup participants
+  // for stable identity inside the round.
+  const clubMap = new Map<Id, Club>();
+  for (const c of allClubs ?? []) clubMap.set(c.id, c);
+  for (const c of clubs) clubMap.set(c.id, c);
 
   // Resolve the cup configuration + display name via the season's competition slug.
   const cupCompetition = seasonCompetition
@@ -150,17 +159,31 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefres
     const nextNumber = lastRound.number + 1;
     const nextName = getRoundName(cupConfig, nextNumber);
 
+    // FA Cup R3 = Premier League + Championship enter the draw alongside the
+    // R2 winners. For DFB-Pokal lateEntrants is empty, so winners are it.
+    const lateEntrants = getLateEntrants(cupConfig, nextNumber, lookupLeagueClubIds, lookupPoolByTier);
+    const allParticipants = [...winners, ...lateEntrants];
+
     // Pot strategy is read from the cup config (Bundesliga: rounds 1+2 have
     // pots, rest are free; FA Cup: all free). undefined = free draw.
-    const pots = buildPotsForNextRound(nextNumber, winners);
+    const pots = buildPotsForNextRound(nextNumber, allParticipants);
 
     const { round, matches: newMatches } = createCupRound({
       seasonCompetitionId: seasonCompetition.id,
       number: nextNumber,
       name: nextName,
-      clubIds: winners,
+      clubIds: allParticipants,
       pots,
     });
+
+    // Persist late entrants to the season-competition's clubIds so they show
+    // up in club lookups and stats. New ids only — no duplicates.
+    if (lateEntrants.length > 0) {
+      const updatedClubIds = Array.from(
+        new Set([...seasonCompetition.clubIds, ...lateEntrants]),
+      );
+      await db.seasonCompetitions.update(seasonCompetition.id, { clubIds: updatedClubIds });
+    }
 
     await db.cupRounds.add(round);
     await db.matches.bulkAdd(newMatches);
@@ -190,6 +213,16 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefres
       awayClubId: p.awayClubId,
       isKnockout: true,
     }));
+
+    // Make sure any late-entrant clubs that the user paired into this round
+    // are also stored on the season-competition (FA Cup R3 case).
+    const lateEntrants = getLateEntrants(cupConfig, nextNumber, lookupLeagueClubIds, lookupPoolByTier);
+    if (lateEntrants.length > 0) {
+      const updatedClubIds = Array.from(
+        new Set([...seasonCompetition.clubIds, ...lateEntrants]),
+      );
+      await db.seasonCompetitions.update(seasonCompetition.id, { clubIds: updatedClubIds });
+    }
 
     await db.cupRounds.add(round);
     await db.matches.bulkAdd(newMatches);
@@ -240,13 +273,24 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, onRefres
     onRefresh();
   };
 
-  // Determine which clubs are available for next round (winners of last round)
+  // Determine which clubs are available for the next round: winners of the
+  // last round + any late entrants this cup defines for that round number.
   const getWinnersForNextRound = () => {
     const lastRound = cupRounds[cupRounds.length - 1];
     if (!lastRound) return [];
     const roundMatches = matches.filter((m) => m.cupRoundId === lastRound.id);
     const winnerIds = roundMatches.map((m) => getCupWinner(m)!).filter(Boolean);
-    return clubs.filter((c) => winnerIds.includes(c.id));
+    const nextNumber = lastRound.number + 1;
+    const lateEntrants = getLateEntrants(cupConfig, nextNumber, lookupLeagueClubIds, lookupPoolByTier);
+    const idSet = new Set([...winnerIds, ...lateEntrants]);
+    // Late entrants may not yet be in `clubs` — pull from the global club map
+    // (passed via clubMap) so they render with the correct logo.
+    const result: Club[] = [];
+    for (const id of idSet) {
+      const c = clubs.find((cl) => cl.id === id) ?? clubMap.get(id);
+      if (c) result.push(c);
+    }
+    return result;
   };
 
   if (cupRounds.length === 0) {
