@@ -53,12 +53,10 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, allClubs
   const cupCompetition = seasonCompetition
     ? COMPETITIONS.find((c) => c.id === seasonCompetition.competitionId)
     : undefined;
-  const cupConfig = (() => {
-    if (!cupCompetition) return undefined;
-    const system = getSystemByCompetitionSlug(cupCompetition.slug);
-    if (!system || system.cup.slug !== cupCompetition.slug) return undefined;
-    return system.cup;
-  })();
+  const cupSystem = cupCompetition ? getSystemByCompetitionSlug(cupCompetition.slug) : undefined;
+  const cupConfig = cupSystem && cupSystem.cup.slug === cupCompetition?.slug ? cupSystem.cup : undefined;
+  const cupWinnerLabel = cupSystem?.cupWinnerLabel ?? "Pokalsieger";
+  const finalRoundNumber = cupConfig?.rounds[cupConfig.rounds.length - 1]?.number;
   const cupTitle = cupCompetition?.name ?? "Pokal";
 
   /** Does the given round use a two-pot draw? Used for button labels. */
@@ -334,7 +332,10 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, allClubs
   const roundMatches = matches.filter((m) => m.cupRoundId === currentRound?.id);
   const allDecided = allRoundMatchesDecided(roundMatches);
   const isLastRound = activeRound === cupRounds.length - 1;
-  const isFinal = currentRound?.name === "Finale";
+  // The final is whichever round the cup config marks as last (DFB-Pokal:
+  // "Finale" / FA Cup: "Final" / Copa del Rey: "Final" — labels can vary).
+  const isFinal =
+    finalRoundNumber !== undefined && currentRound?.number === finalRoundNumber;
 
   // Clubs participating in the current round (for editing)
   const currentRoundClubIds = new Set<string>();
@@ -420,7 +421,7 @@ export function CupView({ seasonCompetition, cupRounds, matches, clubs, allClubs
                 <Confetti />
                 <div className="mt-8 flex flex-col items-center gap-3 text-center">
                   <div className="text-5xl animate-bounce">&#127942;</div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Pokalsieger</p>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{cupWinnerLabel}</p>
                   <ClubLogo
                     logoUrl={winnerClub.logoUrl}
                     name={winnerClub.name}

@@ -110,6 +110,8 @@ export interface LeagueSystem {
   cup: CupConfig;
   /** Label used for matchdays in this country ("Spieltag", "Matchday"). */
   matchdayLabel: string;
+  /** Heading shown above the trophy on the cup-winner screen ("Pokalsieger"). */
+  cupWinnerLabel: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -121,6 +123,7 @@ const GERMAN_SYSTEM: LeagueSystem = {
   name: "Deutschland",
   flag: "🇩🇪",
   matchdayLabel: "Spieltag",
+  cupWinnerLabel: "Pokalsieger",
   leagues: [
     {
       competitionId: "comp_1bl",
@@ -226,6 +229,7 @@ const ENGLISH_SYSTEM: LeagueSystem = {
   name: "England",
   flag: "🇬🇧",
   matchdayLabel: "Matchday",
+  cupWinnerLabel: "Cup Winner",
   leagues: [
     {
       competitionId: "comp_pl",
