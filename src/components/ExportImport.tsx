@@ -7,6 +7,8 @@ import { Separator } from "@/components/ui/separator";
 import { exportAllData, importAllData, shareOrDownloadJson, type BackupData } from "@/lib/backup";
 import { Download, Upload, Trash2, RotateCcw, Trophy, Share2 } from "lucide-react";
 import { db, type Season } from "@/lib/db";
+import { getSystem } from "@/data/leagueSystems";
+import { COMPETITIONS } from "@/data/competitions";
 
 interface ExportImportProps {
   onImportDone: () => void;
@@ -102,19 +104,16 @@ export function ExportImport({ onImportDone, currentSeason }: ExportImportProps)
 
   const handleResetCup = async () => {
     if (!currentSeason) return;
-    if (!confirm(`DFB-Pokal der Saison "${currentSeason.name}" zurücksetzen? Alle Runden und Ergebnisse werden gelöscht (neu auslosen).`)) return;
+    const cupCompId = getSystem(currentSeason.systemId).cup.competitionId;
+    const cupName = COMPETITIONS.find((c) => c.id === cupCompId)?.name ?? "Pokal";
+    if (!confirm(`${cupName} der Saison "${currentSeason.name}" zurücksetzen? Alle Runden und Ergebnisse werden gelöscht (neu auslosen).`)) return;
 
     const scs = await db.seasonCompetitions
       .where("seasonId")
       .equals(currentSeason.id)
       .toArray();
 
-    // Find the cup season-competition
-    const competitions = await db.competitions.toArray();
-    const cupComp = competitions.find((c) => c.type === "cup");
-    if (!cupComp) return;
-
-    const cupSC = scs.find((sc) => sc.competitionId === cupComp.id);
+    const cupSC = scs.find((sc) => sc.competitionId === cupCompId);
     if (!cupSC) return;
 
     await db.transaction("rw", db.matches, db.cupRounds, async () => {
@@ -154,6 +153,12 @@ export function ExportImport({ onImportDone, currentSeason }: ExportImportProps)
     onImportDone();
   };
 
+  const cupLabel = currentSeason
+    ? COMPETITIONS.find(
+        (c) => c.id === getSystem(currentSeason.systemId).cup.competitionId,
+      )?.name ?? "Pokal"
+    : "Pokal";
+
   return (
     <Card className="border-none bg-transparent shadow-none">
       <CardHeader className="pb-3">
@@ -184,7 +189,7 @@ export function ExportImport({ onImportDone, currentSeason }: ExportImportProps)
           {currentSeason && (
             <Button variant="outline" onClick={handleResetCup} className="gap-2 border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10">
               <Trophy className="h-4 w-4" />
-              DFB-Pokal zurücksetzen
+              {cupLabel} zurücksetzen
             </Button>
           )}
           {currentSeason && (
@@ -201,7 +206,7 @@ export function ExportImport({ onImportDone, currentSeason }: ExportImportProps)
 
         {currentSeason && (
           <p className="text-xs text-muted-foreground">
-            DFB-Pokal zurücksetzen: Löscht alle Pokal-Runden und Ergebnisse (neu auslosen). Saison zurücksetzen: Löscht alle Ergebnisse der Saison, Spielpläne bleiben erhalten.
+            {cupLabel} zurücksetzen: Löscht alle Pokal-Runden und Ergebnisse (neu auslosen). Saison zurücksetzen: Löscht alle Ergebnisse der Saison (inkl. Liga + Pokal), Spielpläne bleiben erhalten.
           </p>
         )}
       </CardContent>
