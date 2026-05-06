@@ -1,5 +1,44 @@
-import type { Id, Match, SeasonCompetition } from "./db";
+import type { Id, Match, Matchday, SeasonCompetition } from "./db";
 import { getSystemByCompetitionSlug, positionMatches } from "./leagueSystem";
+
+export type MatchResult = "W" | "D" | "L";
+
+/**
+ * Returns up to the last `count` finished league matches for a club, in
+ * chronological order (oldest first). A match is "finished" when both goal
+ * fields are numeric. Sort key is the matchday number, so this keeps working
+ * even when results are entered out of order.
+ */
+export function computeRecentResults(
+  clubId: Id,
+  matches: Match[],
+  matchdays: Matchday[],
+  count = 5,
+): MatchResult[] {
+  const mdNumber = new Map(matchdays.map((md) => [md.id, md.number]));
+
+  const played = matches
+    .filter(
+      (m) =>
+        (m.homeClubId === clubId || m.awayClubId === clubId) &&
+        typeof m.homeGoals === "number" &&
+        typeof m.awayGoals === "number",
+    )
+    .sort((a, b) => {
+      const an = a.matchdayId ? mdNumber.get(a.matchdayId) ?? 0 : 0;
+      const bn = b.matchdayId ? mdNumber.get(b.matchdayId) ?? 0 : 0;
+      return an - bn;
+    });
+
+  return played.slice(-count).map((m) => {
+    const isHome = m.homeClubId === clubId;
+    const my = (isHome ? m.homeGoals : m.awayGoals) as number;
+    const opp = (isHome ? m.awayGoals : m.homeGoals) as number;
+    if (my > opp) return "W";
+    if (my < opp) return "L";
+    return "D";
+  });
+}
 
 export interface StandingRow {
   clubId: Id;

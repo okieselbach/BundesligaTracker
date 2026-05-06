@@ -2,10 +2,10 @@
 
 import { useMemo } from "react";
 import type { Club, Match, Matchday, SeasonCompetition, Id } from "@/lib/db";
-import { computeStandings, getZone, getZoneColor, getZoneLabel } from "@/lib/standings";
+import { computeRecentResults, computeStandings, getZone, getZoneColor, getZoneLabel, type MatchResult } from "@/lib/standings";
 import { ClubLogo } from "./ClubLogo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronUp, ChevronDown } from "lucide-react";
+import { Check, ChevronUp, ChevronDown, Minus, X } from "lucide-react";
 
 interface StandingsTableProps {
   seasonCompetition: SeasonCompetition;
@@ -54,6 +54,26 @@ function computeTendency(
   return tendency;
 }
 
+function ResultBadge({ result }: { result: MatchResult }) {
+  const cls =
+    result === "W"
+      ? "bg-green-500 text-white"
+      : result === "L"
+        ? "bg-red-500 text-white"
+        : "bg-muted-foreground/40 text-white";
+  const Icon = result === "W" ? Check : result === "L" ? X : Minus;
+  const label = result === "W" ? "Sieg" : result === "L" ? "Niederlage" : "Unentschieden";
+  return (
+    <span
+      title={label}
+      aria-label={label}
+      className={`inline-flex h-4 w-4 items-center justify-center rounded-full ${cls}`}
+    >
+      <Icon className="h-3 w-3" strokeWidth={3} />
+    </span>
+  );
+}
+
 export function StandingsTable({ seasonCompetition, matches, matchdays, clubs, competitionSlug }: StandingsTableProps) {
   const standings = computeStandings(seasonCompetition, matches);
   const clubMap = new Map(clubs.map((c) => [c.id, c]));
@@ -63,6 +83,14 @@ export function StandingsTable({ seasonCompetition, matches, matchdays, clubs, c
     () => computeTendency(standings, matches, matchdays, seasonCompetition),
     [standings, matches, matchdays, seasonCompetition],
   );
+
+  const recentResults = useMemo(() => {
+    const map = new Map<Id, MatchResult[]>();
+    for (const row of standings) {
+      map.set(row.clubId, computeRecentResults(row.clubId, matches, matchdays, 5));
+    }
+    return map;
+  }, [standings, matches, matchdays]);
 
   // Collect unique zones for legend
   const zones = new Set<string>();
@@ -87,7 +115,8 @@ export function StandingsTable({ seasonCompetition, matches, matchdays, clubs, c
                 <th className="w-16 py-2 text-center">S-U-N</th>
                 <th className="w-12 py-2 text-center">T</th>
                 <th className="w-10 py-2 text-center">+/-</th>
-                <th className="w-10 py-2 pr-4 text-center font-bold">Pkt</th>
+                <th className="w-10 py-2 text-center font-bold">Pkt</th>
+                <th className="w-28 py-2 pr-4 text-center">Letzte 5</th>
               </tr>
             </thead>
             <tbody>
@@ -140,7 +169,14 @@ export function StandingsTable({ seasonCompetition, matches, matchdays, clubs, c
                         {row.goalDiff > 0 ? `+${row.goalDiff}` : row.goalDiff}
                       </span>
                     </td>
-                    <td className="py-2.5 pr-4 text-center font-bold text-lg">{row.points}</td>
+                    <td className="py-2.5 text-center font-bold text-lg">{row.points}</td>
+                    <td className="py-2.5 pr-4">
+                      <div className="flex items-center justify-center gap-1">
+                        {(recentResults.get(row.clubId) ?? []).map((r, i) => (
+                          <ResultBadge key={i} result={r} />
+                        ))}
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
@@ -165,6 +201,16 @@ export function StandingsTable({ seasonCompetition, matches, matchdays, clubs, c
               <div className="flex gap-3"><span className="font-semibold text-foreground w-10 shrink-0">T</span><span>Tore</span></div>
               <div className="flex gap-3"><span className="font-semibold text-foreground w-10 shrink-0">+/-</span><span>Tor Differenz</span></div>
               <div className="flex gap-3"><span className="font-semibold text-foreground w-10 shrink-0">Pkt</span><span>Punkte</span></div>
+              <div className="flex items-center gap-3">
+                <span className="font-semibold text-foreground w-10 shrink-0">Letzte 5</span>
+                <span className="flex items-center gap-1.5">
+                  <ResultBadge result="W" /> Sieg
+                  <span className="mx-1" />
+                  <ResultBadge result="D" /> Unentschieden
+                  <span className="mx-1" />
+                  <ResultBadge result="L" /> Niederlage
+                </span>
+              </div>
             </div>
           </div>
         )}
