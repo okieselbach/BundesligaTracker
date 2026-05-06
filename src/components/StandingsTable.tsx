@@ -196,13 +196,13 @@ export function StandingsTable({ seasonCompetition, matches, matchdays, clubs, c
               ))}
             </div>
             <div className="space-y-2 text-xs text-muted-foreground">
-              <div className="flex gap-3"><span className="font-semibold text-foreground w-10 shrink-0">Sp</span><span>Spiele</span></div>
-              <div className="flex gap-3"><span className="font-semibold text-foreground w-10 shrink-0">S-U-N</span><span>Siege-Unentschieden-Niederlagen</span></div>
-              <div className="flex gap-3"><span className="font-semibold text-foreground w-10 shrink-0">T</span><span>Tore</span></div>
-              <div className="flex gap-3"><span className="font-semibold text-foreground w-10 shrink-0">+/-</span><span>Tor Differenz</span></div>
-              <div className="flex gap-3"><span className="font-semibold text-foreground w-10 shrink-0">Pkt</span><span>Punkte</span></div>
+              <div className="flex gap-3"><span className="font-semibold text-foreground w-16 shrink-0 whitespace-nowrap">Sp</span><span>Spiele</span></div>
+              <div className="flex gap-3"><span className="font-semibold text-foreground w-16 shrink-0 whitespace-nowrap">S-U-N</span><span>Siege-Unentschieden-Niederlagen</span></div>
+              <div className="flex gap-3"><span className="font-semibold text-foreground w-16 shrink-0 whitespace-nowrap">T</span><span>Tore</span></div>
+              <div className="flex gap-3"><span className="font-semibold text-foreground w-16 shrink-0 whitespace-nowrap">+/-</span><span>Tor Differenz</span></div>
+              <div className="flex gap-3"><span className="font-semibold text-foreground w-16 shrink-0 whitespace-nowrap">Pkt</span><span>Punkte</span></div>
               <div className="flex items-center gap-3">
-                <span className="font-semibold text-foreground w-10 shrink-0">Letzte 5</span>
+                <span className="font-semibold text-foreground w-16 shrink-0 whitespace-nowrap">Letzte 5</span>
                 <span className="flex items-center gap-1.5">
                   <ResultBadge result="W" /> Sieg
                   <span className="mx-1" />
