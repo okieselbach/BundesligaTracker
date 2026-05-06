@@ -29,6 +29,10 @@ function saveSession(token: string, username: string) {
   localStorage.setItem(USERNAME_KEY, username);
 }
 
+function updateToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
 export function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USERNAME_KEY);
@@ -56,6 +60,14 @@ async function apiCall<T>(path: string, options: RequestInit = {}): Promise<T> {
     res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   } catch (err) {
     throw new Error(`Netzwerkfehler: ${(err as Error).message}`);
+  }
+
+  // Sliding token refresh: every successful authenticated call may return a
+  // freshly-signed token; persist it so the user stays logged in indefinitely
+  // as long as they keep using the app.
+  const refreshed = res.headers.get("x-refreshed-token");
+  if (refreshed && getToken()) {
+    updateToken(refreshed);
   }
 
   let data: unknown;

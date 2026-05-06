@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-const TOKEN_EXPIRY = "30d";
+const TOKEN_EXPIRY = "90d";
 
 function getSecret(): string {
   return process.env.JWT_SECRET || "dev-secret-change-me";

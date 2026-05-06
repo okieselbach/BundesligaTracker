@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
-import { verifyToken } from "../lib/auth.js";
+import { createToken, verifyToken } from "../lib/auth.js";
 import { downloadJson } from "../lib/storage.js";
 
 async function loadBackup(request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> {
@@ -20,7 +20,11 @@ async function loadBackup(request: HttpRequest, _context: InvocationContext): Pr
     return { status: 404, jsonBody: { error: "Kein Backup gefunden" } };
   }
 
-  return { status: 200, jsonBody: data };
+  return {
+    status: 200,
+    headers: { "X-Refreshed-Token": createToken(decoded.username) },
+    jsonBody: data,
+  };
 }
 
 app.http("loadBackup", {

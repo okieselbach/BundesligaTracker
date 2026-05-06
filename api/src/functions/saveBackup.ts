@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
-import { verifyToken } from "../lib/auth.js";
+import { createToken, verifyToken } from "../lib/auth.js";
 import { uploadJson } from "../lib/storage.js";
 
 async function saveBackup(request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> {
@@ -23,7 +23,11 @@ async function saveBackup(request: HttpRequest, _context: InvocationContext): Pr
   const blobPath = `backups/${decoded.username}/latest.json`;
   await uploadJson(blobPath, backupData);
 
-  return { status: 200, jsonBody: { savedAt: new Date().toISOString() } };
+  return {
+    status: 200,
+    headers: { "X-Refreshed-Token": createToken(decoded.username) },
+    jsonBody: { savedAt: new Date().toISOString() },
+  };
 }
 
 app.http("saveBackup", {
