@@ -136,8 +136,8 @@ const GERMAN_SYSTEM: LeagueSystem = {
       slug: "1-bundesliga",
       zones: [
         { positions: { kind: "exact", positions: [1, 2, 3, 4] }, type: "cl" },
-        { positions: { kind: "exact", positions: [5] }, type: "el" },
-        { positions: { kind: "exact", positions: [6] }, type: "ecl" },
+        { positions: { kind: "exact", positions: [5, 6] }, type: "el" },
+        { positions: { kind: "exact", positions: [7] }, type: "ecl" },
         { positions: { kind: "exact", positions: [16] }, type: "relegation" },
         { positions: { kind: "exact", positions: [17, 18] }, type: "abstieg" },
       ],
@@ -243,9 +243,9 @@ const ENGLISH_SYSTEM: LeagueSystem = {
       competitionId: "comp_pl",
       slug: "premier-league",
       zones: [
-        { positions: { kind: "exact", positions: [1, 2, 3, 4] }, type: "cl" },
-        { positions: { kind: "exact", positions: [5] }, type: "el" },
-        { positions: { kind: "exact", positions: [6] }, type: "ecl" },
+        { positions: { kind: "exact", positions: [1, 2, 3, 4, 5] }, type: "cl" },
+        { positions: { kind: "exact", positions: [6, 7] }, type: "el" },
+        { positions: { kind: "exact", positions: [8] }, type: "ecl" },
         { positions: { kind: "exact", positions: [18, 19, 20] }, type: "abstieg" },
       ],
       directRelegationPositions: [], // Premier League drops straight into the pool
