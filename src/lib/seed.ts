@@ -19,7 +19,7 @@ import { generateRoundRobinSchedule } from "./schedule";
  * Used both at season seeding (initialEntrants) and is forward-compatible
  * for FA-Cup-style late entrants.
  */
-function resolveCupEntrants(
+export function resolveCupEntrants(
   sources: CupEntrantSource[],
   leagueClubIdsBySlug: Record<string, string[]>,
   poolClubIdsByTier: Record<string, string[]>,

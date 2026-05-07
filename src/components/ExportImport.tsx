@@ -9,6 +9,8 @@ import { Download, Upload, Trash2, RotateCcw, Trophy, Share2 } from "lucide-reac
 import { db, type Season } from "@/lib/db";
 import { getSystem } from "@/data/leagueSystems";
 import { COMPETITIONS } from "@/data/competitions";
+import { INITIAL_POOL_CLUBS_BY_TIER } from "@/data/clubs";
+import { resolveCupEntrants } from "@/lib/seed";
 
 interface ExportImportProps {
   onImportDone: () => void;
@@ -65,7 +67,28 @@ export function ExportImport({ onImportDone, currentSeason }: ExportImportProps)
       .anyOf(scIds)
       .toArray();
 
-    await db.transaction("rw", db.matches, db.cupRounds, async () => {
+    // Recompute the cup's initial roster — same as handleResetCup — so a
+    // post-reset draw doesn't include late entrants persisted from R3 onward.
+    const system = getSystem(currentSeason.systemId);
+    const cupCompId = system.cup.competitionId;
+    const cupSC = scs.find((sc) => sc.competitionId === cupCompId);
+    const leagueClubIdsBySlug: Record<string, string[]> = {};
+    for (const league of system.leagues) {
+      const sc = scs.find((s) => s.competitionId === league.competitionId);
+      if (sc) leagueClubIdsBySlug[league.slug] = sc.clubIds;
+    }
+    const allLeagueClubIds = new Set(Object.values(leagueClubIdsBySlug).flat());
+    const poolClubIdsByTier: Record<string, string[]> = {};
+    for (const tier of system.poolTiers) {
+      poolClubIdsByTier[tier.id] = (INITIAL_POOL_CLUBS_BY_TIER[tier.id] ?? [])
+        .map((c) => c.id)
+        .filter((id) => !allLeagueClubIds.has(id));
+    }
+    const initialCupClubIds = cupSC
+      ? resolveCupEntrants(system.cup.initialEntrants, leagueClubIdsBySlug, poolClubIdsByTier)
+      : [];
+
+    await db.transaction("rw", db.matches, db.cupRounds, db.seasonCompetitions, async () => {
       // Clear all scores
       for (const m of matches) {
         await db.matches.update(m.id, {
@@ -97,6 +120,10 @@ export function ExportImport({ onImportDone, currentSeason }: ExportImportProps)
           }
         }
       }
+
+      if (cupSC) {
+        await db.seasonCompetitions.update(cupSC.id, { clubIds: initialCupClubIds });
+      }
     });
 
     onImportDone();
@@ -104,7 +131,8 @@ export function ExportImport({ onImportDone, currentSeason }: ExportImportProps)
 
   const handleResetCup = async () => {
     if (!currentSeason) return;
-    const cupCompId = getSystem(currentSeason.systemId).cup.competitionId;
+    const system = getSystem(currentSeason.systemId);
+    const cupCompId = system.cup.competitionId;
     const cupName = COMPETITIONS.find((c) => c.id === cupCompId)?.name ?? "Pokal";
     if (!confirm(`${cupName} der Saison "${currentSeason.name}" zurücksetzen? Alle Runden und Ergebnisse werden gelöscht (neu auslosen).`)) return;
 
@@ -116,7 +144,28 @@ export function ExportImport({ onImportDone, currentSeason }: ExportImportProps)
     const cupSC = scs.find((sc) => sc.competitionId === cupCompId);
     if (!cupSC) return;
 
-    await db.transaction("rw", db.matches, db.cupRounds, async () => {
+    // Rebuild the cup's initial club roster so a fresh draw doesn't include
+    // late entrants (FA Cup R3: Premier League + Championship) that the
+    // previous run wrote into clubIds.
+    const leagueClubIdsBySlug: Record<string, string[]> = {};
+    for (const league of system.leagues) {
+      const sc = scs.find((s) => s.competitionId === league.competitionId);
+      if (sc) leagueClubIdsBySlug[league.slug] = sc.clubIds;
+    }
+    const allLeagueClubIds = new Set(Object.values(leagueClubIdsBySlug).flat());
+    const poolClubIdsByTier: Record<string, string[]> = {};
+    for (const tier of system.poolTiers) {
+      poolClubIdsByTier[tier.id] = (INITIAL_POOL_CLUBS_BY_TIER[tier.id] ?? [])
+        .map((c) => c.id)
+        .filter((id) => !allLeagueClubIds.has(id));
+    }
+    const initialCupClubIds = resolveCupEntrants(
+      system.cup.initialEntrants,
+      leagueClubIdsBySlug,
+      poolClubIdsByTier,
+    );
+
+    await db.transaction("rw", db.matches, db.cupRounds, db.seasonCompetitions, async () => {
       // Delete all cup matches
       const cupMatches = await db.matches
         .where("seasonCompetitionId")
@@ -133,6 +182,8 @@ export function ExportImport({ onImportDone, currentSeason }: ExportImportProps)
       for (const r of cupRounds) {
         await db.cupRounds.delete(r.id);
       }
+      // Restore initial entrant roster (drops late entrants from prior draws).
+      await db.seasonCompetitions.update(cupSC.id, { clubIds: initialCupClubIds });
     });
 
     onImportDone();
