@@ -72,17 +72,16 @@ export function AllClubsView({ clubs, competitions, seasonCompetitions, onRefres
     groups.push({ label: comp.name, competitionSlug: comp.slug, clubs: groupClubs });
   }
 
-  // Remaining clubs = Regionalliga Pool
+  // Remaining clubs = Regionalliga Pool, restricted to the current system so
+  // English pool clubs don't leak into the German view (and vice versa).
+  const firstLeagueComp = leagueComps[0];
+  const system = firstLeagueComp ? getSystemByCompetitionSlug(firstLeagueComp.slug) : undefined;
   const poolClubs = clubs
     .filter((c) => !assignedClubIds.has(c.id))
+    .filter((c) => !system || (c.systemId ?? "de") === system.id)
     .sort((a, b) => a.name.localeCompare(b.name));
 
   if (poolClubs.length > 0) {
-    // Resolve the pool tier label from the system that owns the league
-    // competitions on screen. Falls back to "Regionalliga / Pool" for legacy
-    // data that pre-dates the system config.
-    const firstLeagueComp = leagueComps[0];
-    const system = firstLeagueComp ? getSystemByCompetitionSlug(firstLeagueComp.slug) : undefined;
     const poolLabel = system?.poolTiers[0]?.name ?? "Regionalliga";
     groups.push({ label: `${poolLabel} / Pool`, clubs: poolClubs });
   }

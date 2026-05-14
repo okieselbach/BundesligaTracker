@@ -193,12 +193,15 @@ export function SeasonManager({ seasons, currentSeason, onRefresh }: SeasonManag
           setAbsteigerClubs([]);
         }
 
-        // Pool = all clubs NOT in any league for the source season
+        // Pool = clubs of the active system that are NOT in any league for
+        // the source season. Filtering by systemId keeps English pool clubs
+        // out of a German Regionalliga draw (and vice versa).
         const leagueCompIds = COMPETITIONS.filter((c) => c.type === "league").map((c) => c.id);
         const leagueSCs = scs.filter((sc) => leagueCompIds.includes(sc.competitionId));
         const leagueClubIds = new Set(leagueSCs.flatMap((sc) => sc.clubIds));
         const pool = allClubs
           .filter((c) => !leagueClubIds.has(c.id))
+          .filter((c) => (c.systemId ?? DEFAULT_SYSTEM_ID) === system.id)
           .sort((a, b) => a.name.localeCompare(b.name));
         setPoolClubs(pool);
       } finally {
