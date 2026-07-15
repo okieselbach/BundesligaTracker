@@ -340,44 +340,46 @@ export function WorldCupGroupStage({
           </CardContent>
         </Card>
 
-        {/* Add-country search dialog */}
+        {/* Add-country search dialog. The whole DialogContent scrolls (this is
+            the pattern that scrolls reliably by touch on iPad); the search box
+            sticks to the top so it stays reachable while browsing. */}
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
-          <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" /> Land hinzufügen
               </DialogTitle>
             </DialogHeader>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                autoFocus
-                placeholder="Land suchen..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
+            <div className="sticky top-0 z-10 -mx-6 -mt-2 border-b border-border bg-background px-6 pb-3 pt-1">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  autoFocus
+                  placeholder="Land suchen..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
             </div>
-            <div className="mt-2 flex-1 overflow-y-auto">
-              {addableCountries.length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted-foreground">Kein Land gefunden.</p>
-              ) : (
-                <div className="space-y-1">
-                  {addableCountries.map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => addCountry(c)}
-                      className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-secondary/60"
-                    >
-                      <ClubLogo logoUrl={c.logoUrl} name={c.name} shortName={c.shortName} primaryColor={c.primaryColor} size="sm" />
-                      <span className="flex-1 text-sm font-medium">{c.name}</span>
-                      <Plus className="h-4 w-4 text-muted-foreground" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
+            {addableCountries.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">Kein Land gefunden.</p>
+            ) : (
+              <div className="space-y-1">
+                {addableCountries.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => addCountry(c)}
+                    className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-secondary/60"
+                  >
+                    <ClubLogo logoUrl={c.logoUrl} name={c.name} shortName={c.shortName} primaryColor={c.primaryColor} size="sm" />
+                    <span className="flex-1 text-sm font-medium">{c.name}</span>
+                    <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="sticky bottom-0 -mx-6 -mb-2 border-t border-border bg-background px-6 pb-1 pt-2 text-xs text-muted-foreground">
               {sc.clubIds.length} / {TOTAL_TEAMS} hinzugefügt · Dialog bleibt offen für mehrere Länder.
             </p>
           </DialogContent>
