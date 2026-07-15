@@ -50,6 +50,12 @@ export interface SeasonCompetition {
   pointsLoss: number;
   hasDoubleRound: boolean;
   createdAt: number;
+  /**
+   * World Cup group stage only: the 12 groups (A..L), each an ordered list of
+   * up to 4 club ids. Undefined for every other competition. Non-indexed, so
+   * it needs no Dexie schema bump.
+   */
+  groups?: Id[][];
 }
 
 export interface Matchday {
@@ -72,6 +78,14 @@ export interface Match {
   awayPen?: number;
   isKnockout: boolean;
   playedAt?: number;
+  /** World Cup group stage: which group ("A".."L") this match belongs to. */
+  group?: string;
+  /**
+   * World Cup knockout: stable bracket slot id (e.g. "R32-3", "R16-1", "SF-2",
+   * "FINAL", "THIRD"). Lets us wire winners into downstream matches. Undefined
+   * for every other competition.
+   */
+  bracketPos?: string;
 }
 
 export interface CupRound {

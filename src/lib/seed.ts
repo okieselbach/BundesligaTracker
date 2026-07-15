@@ -14,6 +14,43 @@ import {
 } from "@/data/leagueSystems";
 import { generateRoundRobinSchedule } from "./schedule";
 
+const WC_GROUPS_COMPETITION_ID = "comp_wc_groups";
+const WC_KO_COMPETITION_ID = "comp_wc_ko";
+export const WC_GROUP_COUNT = 12;
+
+/**
+ * Seed an empty World Cup season: one group-stage competition (12 empty groups
+ * the user fills with countries) and one empty knockout competition (built once
+ * the group stage is complete). Countries are added on demand, so both start
+ * with no clubs.
+ */
+async function seedWorldCupSeason(seasonId: string): Promise<void> {
+  const now = Date.now();
+  await db.seasonCompetitions.add({
+    id: newId("sc"),
+    seasonId,
+    competitionId: WC_GROUPS_COMPETITION_ID,
+    clubIds: [],
+    groups: Array.from({ length: WC_GROUP_COUNT }, () => [] as string[]),
+    pointsWin: 3,
+    pointsDraw: 1,
+    pointsLoss: 0,
+    hasDoubleRound: false,
+    createdAt: now,
+  });
+  await db.seasonCompetitions.add({
+    id: newId("sc"),
+    seasonId,
+    competitionId: WC_KO_COMPETITION_ID,
+    clubIds: [],
+    pointsWin: 3,
+    pointsDraw: 1,
+    pointsLoss: 0,
+    hasDoubleRound: false,
+    createdAt: now,
+  });
+}
+
 /**
  * Resolve a list of cup-entrant sources into a flat list of club ids.
  * Used both at season seeding (initialEntrants) and is forward-compatible
@@ -92,6 +129,11 @@ export async function seedQuickStart(
     createdAt: Date.now(),
     systemId: system.id,
   });
+
+  if (system.id === "wc") {
+    await seedWorldCupSeason(seasonId);
+    return;
+  }
 
   const leagueClubIdsBySlug: Record<string, string[]> = {};
 
@@ -214,6 +256,13 @@ export async function createSeason(opts: {
     createdAt: Date.now(),
     systemId: system.id,
   });
+
+  // The World Cup always starts fresh — the user adds countries and composes
+  // the groups each time, so there is nothing to copy or promote/relegate.
+  if (system.id === "wc") {
+    await seedWorldCupSeason(seasonId);
+    return seasonId;
+  }
 
   // Determine club assignments per league
   let leagueClubMap: { competitionId: string; slug: string; clubIds: string[] }[];

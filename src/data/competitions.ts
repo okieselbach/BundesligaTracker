@@ -50,4 +50,21 @@ export const COMPETITIONS: Competition[] = [
     slug: "fa-cup",
     sortOrder: 11,
   },
+  // 🏆 Weltmeisterschaft
+  {
+    id: "comp_wc_groups",
+    name: "Gruppenphase",
+    shortName: "Gruppen",
+    type: "league",
+    slug: "wm-gruppen",
+    sortOrder: 20,
+  },
+  {
+    id: "comp_wc_ko",
+    name: "K.-o.-Runde",
+    shortName: "K.o.",
+    type: "cup",
+    slug: "wm-ko",
+    sortOrder: 21,
+  },
 ];

@@ -294,10 +294,65 @@ const ENGLISH_SYSTEM: LeagueSystem = {
 };
 
 // ---------------------------------------------------------------------------
+// 🏆 Weltmeisterschaft (World Cup 2026)
+// ---------------------------------------------------------------------------
+//
+// The World Cup does not fit the "N leagues + 1 cup with promotion/relegation"
+// shape of the club systems, so it is special-cased throughout:
+//   • the "group stage" is one competition holding 12 mini round-robins
+//     (see SeasonCompetition.groups) rendered by WorldCupGroupStage, NOT the
+//     generic StandingsTable — hence empty zones here.
+//   • the knockout is a FIXED bracket (not the redraw-per-round club cup),
+//     rendered by WorldCupBracket instead of CupView.
+// The entries below exist so the system shows up in the picker and so the two
+// competitions resolve via getSystemByCompetitionSlug / visibleCompetitions.
+
+export const WORLD_CUP_GROUPS_SLUG = "wm-gruppen";
+export const WORLD_CUP_KO_SLUG = "wm-ko";
+
+const WORLD_CUP_SYSTEM: LeagueSystem = {
+  id: "wc",
+  name: "Weltmeisterschaft",
+  flag: "🏆",
+  matchdayLabel: "Spieltag",
+  cupWinnerLabel: "Weltmeister",
+  championLabel: "Weltmeister",
+  cupShortLabel: "WM",
+  leagues: [
+    {
+      competitionId: "comp_wc_groups",
+      slug: WORLD_CUP_GROUPS_SLUG,
+      zones: [],
+      directRelegationPositions: [],
+      directPromotionPositions: [],
+    },
+  ],
+  poolTiers: [{ id: "nation", name: "Nationen", shortName: "NAT" }],
+  poolExchangeCount: 0,
+  cup: {
+    competitionId: "comp_wc_ko",
+    slug: WORLD_CUP_KO_SLUG,
+    totalTeams: 32,
+    initialEntrants: [],
+    rounds: [
+      { number: 1, name: "Sechzehntelfinale", draw: { type: "free" } },
+      { number: 2, name: "Achtelfinale", draw: { type: "free" } },
+      { number: 3, name: "Viertelfinale", draw: { type: "free" } },
+      { number: 4, name: "Halbfinale", draw: { type: "free" } },
+      { number: 5, name: "Finale", draw: { type: "free" } },
+    ],
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Registry
 // ---------------------------------------------------------------------------
 
-export const LEAGUE_SYSTEMS: LeagueSystem[] = [GERMAN_SYSTEM, ENGLISH_SYSTEM];
+export const LEAGUE_SYSTEMS: LeagueSystem[] = [
+  GERMAN_SYSTEM,
+  ENGLISH_SYSTEM,
+  WORLD_CUP_SYSTEM,
+];
 
 /** Default system used when no explicit choice has been made. */
 export const DEFAULT_SYSTEM_ID = "de";

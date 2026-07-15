@@ -14,7 +14,9 @@ import {
 // 6 = corrected logo URLs for Aston Villa, Forest, Crystal Palace, Burnley,
 //     Norwich, Wrexham, Charlton, Millwall, Coventry, Oxford.
 // 7 = rename "Spieltag X" → "Matchday X" for matchdays in English seasons.
-export const CLUBS_CONFIG_VERSION = 7;
+// 8 = World Cup: adds comp_wc_groups + comp_wc_ko competitions. Country clubs
+//     are added on demand (not part of ALL_CLUBS), so nothing else changes.
+export const CLUBS_CONFIG_VERSION = 8;
 
 const SYSTEM_DE = "de";
 const TIER_REGIONALLIGA = "regionalliga";

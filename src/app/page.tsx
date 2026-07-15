@@ -11,6 +11,8 @@ import { MatchdayView } from "@/components/MatchdayView";
 import { ClubGrid } from "@/components/ClubGrid";
 import { AllClubsView } from "@/components/AllClubsView";
 import { CupView } from "@/components/CupView";
+import { WorldCupGroupStage } from "@/components/WorldCupGroupStage";
+import { WorldCupBracket } from "@/components/WorldCupBracket";
 import { AllTimeTable } from "@/components/AllTimeTable";
 import { HistoryView } from "@/components/HistoryView";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
@@ -280,6 +282,9 @@ export default function Home() {
     return <WelcomeScreen onQuickStart={handleQuickStart} onImportDone={refresh} onSyncStateChange={refreshSyncState} />;
   }
 
+  const isWorldCup = (currentSeason?.systemId ?? DEFAULT_SYSTEM_ID) === "wc";
+  const isWorldCupGroups = isWorldCup && activeCompetition?.slug === "wm-gruppen";
+  const isWorldCupKO = isWorldCup && activeCompetition?.slug === "wm-ko";
   const isCup = activeCompetition?.type === "cup";
   const isLeague = activeCompetition?.type === "league";
   const activeSystem = activeCompetition ? getSystemByCompetitionSlug(activeCompetition.slug) : undefined;
@@ -340,6 +345,21 @@ export default function Home() {
             clubs={allDbClubs}
             competitions={visibleCompetitions}
             seasonCompetitions={seasonCompetitions}
+            onRefresh={refresh}
+          />
+        ) : isWorldCupGroups ? (
+          <WorldCupGroupStage
+            seasonCompetition={seasonCompetition}
+            matches={matches}
+            matchdays={matchdays}
+            allClubs={allDbClubs}
+            onRefresh={refresh}
+          />
+        ) : isWorldCupKO ? (
+          <WorldCupBracket
+            seasonId={currentSeason!.id}
+            refreshKey={refreshKey}
+            allClubs={allDbClubs}
             onRefresh={refresh}
           />
         ) : isCup ? (
